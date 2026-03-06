@@ -1,6 +1,9 @@
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal
-from textual.widgets import Footer, Header, Static
+from textual import on
+from textual.widgets import Footer, Header
+
+from gh_review_dashboard.widgets import DetailPaneWidget, PRListWidget, PRSelected
 
 
 class ReviewDashboardApp(App):
@@ -13,6 +16,10 @@ class ReviewDashboardApp(App):
     def compose(self) -> ComposeResult:
         yield Header()
         with Horizontal():
-            yield Static("PR List (placeholder)", id="pr-list-pane")
-            yield Static("Detail (placeholder)", id="detail-pane")
+            yield PRListWidget(id="pr-list-pane")
+            yield DetailPaneWidget(id="detail-pane")
         yield Footer()
+
+    @on(PRSelected)
+    def handle_pr_selected(self, event: PRSelected) -> None:
+        self.query_one(DetailPaneWidget).show_pr(event.pull_request)

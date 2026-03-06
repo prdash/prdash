@@ -8,3 +8,21 @@
     width: 60%;
     height: 100%;
 }
+
+.hidden {
+    display: none;
+}
+
+.detail-section {
+    padding: 0 1;
+    margin-bottom: 1;
+}
+
+#detail-placeholder {
+    padding: 1 2;
+    color: $text-muted;
+}
+
+.pr-row-label {
+    padding: 0 1;
+}
