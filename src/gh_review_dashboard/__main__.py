@@ -1,5 +1,9 @@
+from gh_review_dashboard.app import ReviewDashboardApp
+
+
 def main():
-    print("gh-review-dashboard is running")
+    app = ReviewDashboardApp()
+    app.run()
 
 
 if __name__ == "__main__":

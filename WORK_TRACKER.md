@@ -33,7 +33,7 @@ Depends on Phase 2.
 
 | ID | Task | Dependencies | Status |
 |---|---|---|---|
-| T05 | App shell & layout (Textual app class, split-pane CSS layout with left/right panes, header/footer) | T01 | not started |
+| T05 | App shell & layout (Textual app class, split-pane CSS layout with left/right panes, header/footer) | T01 | completed |
 | T06 | PR list widget (left pane: collapsible sections per query group, PR row display with title, author, age, CI/check status, review status) | T04, T05 | not started |
 | T07 | Detail pane widget (right pane: PR description/body, labels, requested reviewers and their status, expanded CI/check status, event timeline) | T04, T05 | not started |
 

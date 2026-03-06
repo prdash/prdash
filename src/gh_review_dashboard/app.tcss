@@ -1,0 +1,10 @@
+#pr-list-pane {
+    width: 40%;
+    height: 100%;
+    border-right: solid $accent;
+}
+
+#detail-pane {
+    width: 60%;
+    height: 100%;
+}
