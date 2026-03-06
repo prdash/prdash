@@ -29,6 +29,8 @@ pyproject.toml                 # Project metadata and dependencies
 - Update `WORK_TRACKER.md` status to "in progress" when starting a task
 - Update `WORK_TRACKER.md` status to "completed" when done and verified
 - Check dependency column — do not start a task whose dependencies are incomplete
+- **After completing and verifying a task, always commit all changes** (code, tests, config, `WORK_TRACKER.md`) before moving on to the next task
+- **Keep documentation up to date**: If changes affect project structure, commands, conventions, or patterns described in `CLAUDE.md` or files under `agent_docs/`, update those docs in the same commit
 
 # Commands
 
