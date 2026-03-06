@@ -25,7 +25,7 @@ Depends on Phase 1.
 | ID | Task | Dependencies | Status |
 |---|---|---|---|
 | T03 | GitHub authentication (extract token from `gh` CLI, validate token works) | T01 | completed |
-| T04 | GraphQL client & queries (PR queries for each group type: direct reviewer, team reviewer, mentioned/involved, authored, label-based; response parsing into data models with title, author, age, CI status, review status, description, labels, reviewers, timeline) | T01, T02, T03 | not started |
+| T04 | GraphQL client & queries (PR queries for each group type: direct reviewer, team reviewer, mentioned/involved, authored, label-based; response parsing into data models with title, author, age, CI status, review status, description, labels, reviewers, timeline) | T01, T02, T03 | completed |
 
 ## Phase 3: Core TUI
 

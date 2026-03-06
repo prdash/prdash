@@ -10,8 +10,11 @@ src/gh_review_dashboard/      # Main package
   __main__.py                  # Entry point
   app.py                       # Textual App subclass
   config.py                    # TOML config loading, Pydantic models
-  github_client.py             # httpx async client, GraphQL queries
   models.py                    # PR data models (PullRequest, Reviewer, etc.)
+  github/                      # GitHub API subpackage
+    __init__.py                # Re-exports GitHubClient, build_search_query
+    client.py                  # Async GraphQL client (GitHubClient)
+    queries.py                 # GraphQL query template + search builder
   widgets/                     # Textual widget modules
     pr_list.py                 # Left pane: PR list with collapsible groups
     detail_pane.py             # Right pane: PR detail view
