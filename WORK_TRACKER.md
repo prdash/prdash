@@ -15,7 +15,7 @@ No dependencies. These tasks can be done in parallel.
 
 | ID | Task | Dependencies | Status |
 |---|---|---|---|
-| T01 | Python project setup (`uv init`, pyproject.toml, directory structure, dependencies: textual, httpx) | none | not started |
+| T01 | Python project setup (`uv init`, pyproject.toml, directory structure, dependencies: textual, httpx) | none | completed |
 | T02 | Configuration system (TOML config loading, schema with defaults, config model classes for repo, username, team slugs, poll interval, query groups) | none | not started |
 
 ## Phase 2: Data Layer
