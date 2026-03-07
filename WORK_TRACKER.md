@@ -55,6 +55,7 @@ Depends on Phase 4.
 |---|---|---|---|
 | T11 | Error handling & edge cases (API errors, no PRs found, auth failures, network timeouts, graceful degradation) | T03, T04, T06, T07, T10 | not started |
 | T12 | README & usage documentation (installation, configuration, usage, keybindings) | all prior tasks | not started |
+| T21 | Render PR description as Markdown in detail pane (use Textual's built-in Markdown widget) | T07 | not started |
 
 ## Phase 6: Setup & Settings
 
@@ -69,6 +70,14 @@ Depends on Phase 2 (T02, T03).
 | T17 | In-app settings screen (S keybinding, edit essentials, immediate save + re-fetch) | T14, T15 | completed |
 | T18 | Setup/settings polish (end-to-end tests, edge cases, documentation updates) | T16, T17 | completed |
 | T19 | Query group settings screen (add/remove/reorder/toggle query groups in-app) | T17 | not started |
+
+## Phase 7: Deduplication
+
+Depends on Phase 3 (T06) and Phase 4 (T10).
+
+| ID | Task | Dependencies | Status |
+|---|---|---|---|
+| T20 | Deduplicate PRs across query groups (assign each PR to highest-priority matching group, dedup at display layer) | T06, T10 | not started |
 
 ## Feature Coverage
 
