@@ -1,6 +1,10 @@
 #pr-list-pane {
     width: 40%;
     height: 100%;
+    border-right: solid $surface;
+}
+
+#pr-list-pane:focus-within {
     border-right: solid $accent;
 }
 
@@ -25,4 +29,10 @@
 
 .pr-row-label {
     padding: 0 1;
+}
+
+.group-header-label {
+    padding: 0 1;
+    text-style: bold;
+    background: $surface;
 }

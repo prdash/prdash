@@ -16,8 +16,14 @@ def test_app_css_path():
 
 def test_app_has_quit_binding():
     app = ReviewDashboardApp()
-    keys = [b[0] for b in app.BINDINGS]
+    keys = [b.key for b in app.BINDINGS]
     assert "q" in keys
+
+
+def test_app_has_tab_binding():
+    app = ReviewDashboardApp()
+    keys = [b.key for b in app.BINDINGS]
+    assert "tab" in keys
 
 
 @pytest.mark.asyncio
@@ -69,3 +75,24 @@ async def test_app_pr_selected_wires_to_detail_pane(sample_pr):
 
         meta = pilot.app.query_one("#detail-metadata", Static)
         assert "hidden" not in meta.classes
+
+
+@pytest.mark.asyncio
+async def test_tab_switches_focus():
+    app = ReviewDashboardApp()
+    async with app.run_test(size=(120, 40)) as pilot:
+        # Initial focus should be on the PR list
+        pr_list_view = pilot.app.query_one("#pr-list-view")
+        detail_scroll = pilot.app.query_one("#detail-scroll")
+
+        assert pr_list_view.has_focus
+
+        # Press tab to switch to detail pane
+        await pilot.press("tab")
+        await pilot.pause()
+        assert detail_scroll.has_focus
+
+        # Press tab again to switch back
+        await pilot.press("tab")
+        await pilot.pause()
+        assert pr_list_view.has_focus

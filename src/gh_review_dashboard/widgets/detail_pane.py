@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.widget import Widget
 from textual.widgets import Static
@@ -83,11 +84,20 @@ def _format_timeline(pr: PullRequest) -> str:
     return "\n".join(lines)
 
 
+class ScrollableDetailScroll(VerticalScroll):
+    """VerticalScroll with j/k vim-style scrolling."""
+
+    BINDINGS = [
+        Binding("j", "scroll_down", "Down", show=False),
+        Binding("k", "scroll_up", "Up", show=False),
+    ]
+
+
 class DetailPaneWidget(Widget):
     """Right-pane widget showing selected PR details."""
 
     def compose(self):
-        with VerticalScroll(id="detail-scroll"):
+        with ScrollableDetailScroll(id="detail-scroll"):
             yield Static(
                 "Select a pull request from the list\nto view its details.",
                 id="detail-placeholder",
