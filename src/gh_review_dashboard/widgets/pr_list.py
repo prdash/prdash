@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import webbrowser
+
 from textual.binding import Binding
 from textual.message import Message
 from textual.widget import Widget
@@ -156,6 +158,8 @@ class PRListWidget(Widget):
             header.collapsed = not header.collapsed
             self._header_states[header.group_name] = header.collapsed
             self._rebuild_list()
+        elif isinstance(event.item, PRRow):
+            webbrowser.open(event.item.pr.url)
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         """Emit PRSelected when a PR row is highlighted."""

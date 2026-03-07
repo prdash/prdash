@@ -1,5 +1,7 @@
 """Tests for the PR list widget."""
 
+from unittest.mock import patch
+
 import pytest
 
 from gh_review_dashboard.app import ReviewDashboardApp
@@ -240,3 +242,32 @@ async def test_highlight_pr_emits_selected(sample_pr):
         from textual.widgets import Static
         meta = pilot.app.query_one("#detail-metadata", Static)
         assert "hidden" not in meta.classes
+
+
+@pytest.mark.asyncio
+async def test_enter_on_pr_row_opens_browser(sample_pr):
+    """Pressing Enter on a PR row should open the PR URL in the browser."""
+    app = ReviewDashboardApp()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test",
+                group_type="test",
+                pull_requests=[sample_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        # Move to the PR row (index 0 is header, 1 is PR)
+        await pilot.press("j")
+        await pilot.pause()
+
+        with patch("gh_review_dashboard.widgets.pr_list.webbrowser.open") as mock_open:
+            await pilot.press("enter")
+            await pilot.pause()
+            mock_open.assert_called_once_with(sample_pr.url)

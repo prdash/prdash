@@ -44,7 +44,7 @@ Depends on Phase 3.
 | ID | Task | Dependencies | Status |
 |---|---|---|---|
 | T08 | Navigation & keybindings (vim j/k + arrow keys for list navigation, group collapse/expand, pane focus switching) | T06, T07 | completed |
-| T09 | Open in browser action (Enter key opens selected PR URL in default browser) | T06, T08 | not started |
+| T09 | Open in browser action (Enter key opens selected PR URL in default browser) | T06, T08 | completed |
 | T10 | Refresh system (auto-refresh on configurable timer from config, manual refresh via r/R keybinding, new-item visual indicator for PRs appearing since last viewed) | T04, T06, T08 | not started |
 
 ## Phase 5: Polish
