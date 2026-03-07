@@ -7,6 +7,7 @@ import pytest
 from gh_review_dashboard.app import ReviewDashboardApp
 from gh_review_dashboard.models import QueryGroupResult
 from gh_review_dashboard.widgets.pr_list import (
+    EmptyGroupItem,
     GroupHeaderItem,
     NavigableListView,
     PRListWidget,
@@ -402,3 +403,69 @@ async def test_seen_pr_row_no_marker(sample_pr):
         label_static = rows[0].query_one(Static)
         assert "pr-row-new" not in label_static.classes
         assert "●" not in str(label_static.content)
+
+
+# --- Empty group placeholder tests ---
+
+
+@pytest.mark.asyncio
+async def test_expanded_empty_group_shows_placeholder():
+    """An expanded group with 0 PRs should show an EmptyGroupItem placeholder."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Empty Group",
+                group_type="test",
+                pull_requests=[],
+            ),
+        ])
+        await pilot.pause()
+
+        # The group starts collapsed (auto-collapse for empty groups).
+        # Expand it by toggling.
+        widget._header_states["Empty Group"] = False
+        widget._rebuild_list()
+        await pilot.pause()
+
+        placeholders = list(widget.query(EmptyGroupItem))
+        assert len(placeholders) == 1
+        from textual.widgets import Static
+        label = placeholders[0].query_one(Static)
+        assert "No pull requests found" in str(label.content)
+
+
+@pytest.mark.asyncio
+async def test_enter_on_empty_group_item_is_noop(sample_pr):
+    """Pressing Enter on an EmptyGroupItem should not crash or open browser."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Empty Group",
+                group_type="test",
+                pull_requests=[],
+            ),
+        ])
+        await pilot.pause()
+
+        # Expand the empty group
+        widget._header_states["Empty Group"] = False
+        widget._rebuild_list()
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        # Move to the EmptyGroupItem (index 0=header, 1=empty placeholder)
+        await pilot.press("j")
+        await pilot.pause()
+
+        # Press enter — should not crash
+        with patch("gh_review_dashboard.widgets.pr_list.webbrowser.open") as mock_open:
+            await pilot.press("enter")
+            await pilot.pause()
+            mock_open.assert_not_called()

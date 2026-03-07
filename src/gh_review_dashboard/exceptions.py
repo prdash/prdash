@@ -14,4 +14,8 @@ class ConfigError(DashboardError):
 
 
 class GitHubAPIError(DashboardError):
-    """GitHub API request failed (network, rate limit, query error)."""
+    """GitHub API request failed (rate limit, query error)."""
+
+
+class NetworkError(DashboardError):
+    """Network or timeout error communicating with GitHub."""

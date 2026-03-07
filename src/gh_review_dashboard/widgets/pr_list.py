@@ -53,6 +53,13 @@ class GroupHeaderItem(ListItem):
         label.update(f"{self._arrow} {self.group_name} ({self.count})")
 
 
+class EmptyGroupItem(ListItem):
+    """Placeholder shown when an expanded group has no PRs."""
+
+    def compose(self):
+        yield Static("    No pull requests found", classes="empty-group-label")
+
+
 class PRRow(ListItem):
     """A single PR row in the list."""
 
@@ -131,10 +138,14 @@ class PRListWidget(Widget):
             item_ids.append(f"header:{group.group_name}")
 
             if not collapsed:
-                for pr in group.pull_requests:
-                    is_new = bool(self._seen_ids) and pr.id not in self._seen_ids
-                    items.append(PRRow(pr, is_new=is_new))
-                    item_ids.append(f"pr:{pr.id}")
+                if not group.pull_requests:
+                    items.append(EmptyGroupItem())
+                    item_ids.append(f"empty:{group.group_name}")
+                else:
+                    for pr in group.pull_requests:
+                        is_new = bool(self._seen_ids) and pr.id not in self._seen_ids
+                        items.append(PRRow(pr, is_new=is_new))
+                        item_ids.append(f"pr:{pr.id}")
 
         for item in items:
             list_view.append(item)
@@ -164,6 +175,8 @@ class PRListWidget(Widget):
             header.collapsed = not header.collapsed
             self._header_states[header.group_name] = header.collapsed
             self._rebuild_list()
+        elif isinstance(event.item, EmptyGroupItem):
+            pass  # No-op for empty placeholder
         elif isinstance(event.item, PRRow):
             webbrowser.open(event.item.pr.url)
 

@@ -150,6 +150,57 @@ class TestLoadConfigErrors:
             load_config(path)
 
 
+class TestTimeoutConfig:
+    def test_default_timeout(self) -> None:
+        config = AppConfig(
+            repo=RepoConfig(org="org", name="repo"),
+            username="user",
+        )
+        assert config.timeout == 30.0
+
+    def test_custom_timeout(self) -> None:
+        config = AppConfig(
+            repo=RepoConfig(org="org", name="repo"),
+            username="user",
+            timeout=60.0,
+        )
+        assert config.timeout == 60.0
+
+    def test_timeout_minimum_validation(self) -> None:
+        with pytest.raises(Exception):  # Pydantic ValidationError
+            AppConfig(
+                repo=RepoConfig(org="org", name="repo"),
+                username="user",
+                timeout=0.5,
+            )
+
+    def test_timeout_from_toml(self, tmp_path: Path) -> None:
+        path = _write_toml(
+            tmp_path,
+            """\
+            username = "user"
+            timeout = 45.0
+
+            [repo]
+            org = "org"
+            name = "repo"
+            """,
+        )
+        config = load_config(path)
+        assert config.timeout == 45.0
+
+    def test_timeout_round_trip(self, tmp_path: Path) -> None:
+        config = AppConfig(
+            repo=RepoConfig(org="org", name="repo"),
+            username="user",
+            timeout=15.0,
+        )
+        path = tmp_path / "config.toml"
+        save_config(config, path)
+        loaded = load_config(path)
+        assert loaded.timeout == 15.0
+
+
 class TestQueryGroupConfig:
     def test_labels_only_valid_for_label_type(self) -> None:
         with pytest.raises(ValueError, match="labels"):

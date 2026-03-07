@@ -53,7 +53,7 @@ Depends on Phase 4.
 
 | ID | Task | Dependencies | Status |
 |---|---|---|---|
-| T11 | Error handling & edge cases (API errors, no PRs found, auth failures, network timeouts, graceful degradation) | T03, T04, T06, T07, T10 | not started |
+| T11 | Error handling & edge cases (API errors, no PRs found, auth failures, network timeouts, graceful degradation) | T03, T04, T06, T07, T10 | completed |
 | T12 | README & usage documentation (installation, configuration, usage, keybindings) | all prior tasks | not started |
 | T21 | Render PR description as Markdown in detail pane (use Textual's built-in Markdown widget) | T07 | not started |
 

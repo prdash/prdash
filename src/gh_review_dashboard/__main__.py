@@ -27,7 +27,7 @@ def main():
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-    http_client = create_http_client(token)
+    http_client = create_http_client(token, timeout=config.timeout)
     github_client = GitHubClient(http_client)
     app = ReviewDashboardApp(config=config, github_client=github_client)
     app.run()

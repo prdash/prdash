@@ -6,6 +6,7 @@ from textual import on, work
 from textual.widgets import Footer, Header
 
 from gh_review_dashboard.config import AppConfig
+from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkError
 from gh_review_dashboard.github.client import GitHubClient
 from gh_review_dashboard.screens.settings import SettingsScreen
 from gh_review_dashboard.widgets import DetailPaneWidget, PRListWidget, PRSelected
@@ -67,11 +68,20 @@ class ReviewDashboardApp(App):
         """Fetch fresh data from GitHub and update the UI."""
         if self.github_client is None or self.config is None:
             return
-        groups = await self.github_client.fetch_all_groups(self.config)
-        pr_list = self.query_one(PRListWidget)
-        pr_list.update_data(groups, seen_ids=self._seen_pr_ids)
-        new_ids = {pr.id for group in groups for pr in group.pull_requests}
-        self._seen_pr_ids = new_ids
+        try:
+            groups, errors = await self.github_client.fetch_all_groups(self.config)
+            pr_list = self.query_one(PRListWidget)
+            pr_list.update_data(groups, seen_ids=self._seen_pr_ids)
+            new_ids = {pr.id for group in groups for pr in group.pull_requests}
+            self._seen_pr_ids = new_ids
+            for group_name, exc in errors:
+                self.notify(f"{group_name}: {exc}", severity="warning")
+        except AuthError as e:
+            self.notify(str(e), severity="error", timeout=10)
+        except (NetworkError, GitHubAPIError) as e:
+            self.notify(str(e), severity="warning", timeout=8)
+        except Exception as e:
+            self.notify(f"Unexpected error: {e}", severity="error", timeout=10)
 
     def action_settings(self) -> None:
         """Open the settings screen."""

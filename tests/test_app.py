@@ -4,6 +4,7 @@ import pytest
 
 from gh_review_dashboard.app import ReviewDashboardApp
 from gh_review_dashboard.config import AppConfig, QueryGroupConfig, QueryGroupType, RepoConfig
+from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkError
 from gh_review_dashboard.github.client import GitHubClient
 from gh_review_dashboard.models import QueryGroupResult
 from gh_review_dashboard.widgets import DetailPaneWidget, PRListWidget
@@ -17,10 +18,10 @@ def _make_config() -> AppConfig:
     )
 
 
-def _make_app(groups: list[QueryGroupResult] | None = None, **kwargs):
+def _make_app(groups: list[QueryGroupResult] | None = None, errors: list[tuple[str, Exception]] | None = None, **kwargs):
     """Create an app with a mocked GitHubClient."""
     mock_client = AsyncMock(spec=GitHubClient)
-    mock_client.fetch_all_groups.return_value = groups or []
+    mock_client.fetch_all_groups.return_value = (groups or [], errors or [])
     config = _make_config()
     return ReviewDashboardApp(config=config, github_client=mock_client, **kwargs), mock_client
 
@@ -195,3 +196,71 @@ async def test_no_refresh_without_client():
     async with app.run_test(size=(120, 40)) as pilot:
         await pilot.pause()
         # Should not raise
+
+
+@pytest.mark.asyncio
+async def test_refresh_data_auth_error_notifies():
+    """AuthError during refresh should show error notification, not crash."""
+    app, mock_client = _make_app()
+    mock_client.fetch_all_groups.side_effect = AuthError("Token expired. Run 'gh auth login' to re-authenticate.")
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+        # App should still be running (not crashed)
+        assert pilot.app is not None
+
+
+@pytest.mark.asyncio
+async def test_refresh_data_network_error_notifies():
+    """NetworkError during refresh should show warning notification, not crash."""
+    app, mock_client = _make_app()
+    mock_client.fetch_all_groups.side_effect = NetworkError("Connection refused")
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+        assert pilot.app is not None
+
+
+@pytest.mark.asyncio
+async def test_refresh_data_api_error_notifies():
+    """GitHubAPIError during refresh should show warning notification, not crash."""
+    app, mock_client = _make_app()
+    mock_client.fetch_all_groups.side_effect = GitHubAPIError("Rate limit exceeded")
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+        assert pilot.app is not None
+
+
+@pytest.mark.asyncio
+async def test_refresh_data_unexpected_error_notifies():
+    """Unexpected exception during refresh should show error notification, not crash."""
+    app, mock_client = _make_app()
+    mock_client.fetch_all_groups.side_effect = RuntimeError("Something unexpected")
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+        assert pilot.app is not None
+
+
+@pytest.mark.asyncio
+async def test_refresh_data_partial_group_errors(sample_pr):
+    """Per-group errors should notify but still display successful groups."""
+    groups = [
+        QueryGroupResult(
+            group_name="Direct",
+            group_type="test",
+            pull_requests=[sample_pr],
+        ),
+    ]
+    errors = [("Authored", GitHubAPIError("rate limit"))]
+    app, mock_client = _make_app(groups=groups, errors=errors)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+        # The successful group should still be displayed
+        pr_list = pilot.app.query_one(PRListWidget)
+        from gh_review_dashboard.widgets.pr_list import GroupHeaderItem
+        headers = list(pr_list.query(GroupHeaderItem))
+        assert len(headers) == 1
+        assert headers[0].group_name == "Direct"

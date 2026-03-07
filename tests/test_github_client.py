@@ -12,7 +12,7 @@ from gh_review_dashboard.config import (
     QueryGroupType,
     RepoConfig,
 )
-from gh_review_dashboard.exceptions import AuthError, GitHubAPIError
+from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkError
 from gh_review_dashboard.github.client import GitHubClient, create_http_client
 from gh_review_dashboard.github.queries import build_search_query
 
@@ -134,7 +134,7 @@ class TestExecuteQuery:
         )
         async with httpx.AsyncClient(base_url="https://api.github.com") as http:
             client = GitHubClient(http)
-            with pytest.raises(AuthError, match="invalid or expired"):
+            with pytest.raises(AuthError, match="invalid or expired.*gh auth login"):
                 await client.execute_query("query { viewer { login } }", {})
 
     @pytest.mark.asyncio
@@ -164,10 +164,9 @@ class TestExecuteQuery:
     @pytest.mark.asyncio
     async def test_network_error(self) -> None:
         async with httpx.AsyncClient(base_url="https://api.github.com") as http:
-            # Patch transport to raise
             http._transport = _ErrorTransport(httpx.ConnectError("Connection refused"))
             client = GitHubClient(http)
-            with pytest.raises(GitHubAPIError, match="Network error"):
+            with pytest.raises(NetworkError, match="Network error"):
                 await client.execute_query("query { viewer { login } }", {})
 
     @pytest.mark.asyncio
@@ -175,7 +174,7 @@ class TestExecuteQuery:
         async with httpx.AsyncClient(base_url="https://api.github.com") as http:
             http._transport = _ErrorTransport(httpx.ReadTimeout("timed out"))
             client = GitHubClient(http)
-            with pytest.raises(GitHubAPIError, match="timed out"):
+            with pytest.raises(NetworkError, match="timed out"):
                 await client.execute_query("query { viewer { login } }", {})
 
 
@@ -275,12 +274,13 @@ class TestFetchAllGroups:
         )
         async with httpx.AsyncClient(base_url="https://api.github.com") as http:
             client = GitHubClient(http)
-            results = await client.fetch_all_groups(config)
+            results, errors = await client.fetch_all_groups(config)
         assert len(results) == 2
+        assert len(errors) == 0
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_failed_group_doesnt_block_others(self) -> None:
+    async def test_failed_group_returns_error_tuple(self) -> None:
         respx.post("https://api.github.com/graphql").mock(
             side_effect=[
                 httpx.Response(200, json=_graphql_response([_minimal_pr_node()])),
@@ -295,9 +295,12 @@ class TestFetchAllGroups:
         )
         async with httpx.AsyncClient(base_url="https://api.github.com") as http:
             client = GitHubClient(http)
-            results = await client.fetch_all_groups(config)
+            results, errors = await client.fetch_all_groups(config)
         assert len(results) == 1
         assert results[0].group_name == "Direct"
+        assert len(errors) == 1
+        assert errors[0][0] == "Authored"
+        assert isinstance(errors[0][1], Exception)
 
     @pytest.mark.asyncio
     @respx.mock
@@ -317,9 +320,10 @@ class TestFetchAllGroups:
         )
         async with httpx.AsyncClient(base_url="https://api.github.com") as http:
             client = GitHubClient(http)
-            results = await client.fetch_all_groups(config)
+            results, errors = await client.fetch_all_groups(config)
         assert len(results) == 1
         assert results[0].group_name == "Direct"
+        assert len(errors) == 0
 
 
 # --- TestPagination ---
@@ -374,3 +378,11 @@ class TestCreateHttpClient:
         client = create_http_client("ghp_test123")
         assert client.headers["authorization"] == "Bearer ghp_test123"
         assert str(client.base_url) == "https://api.github.com"
+
+    def test_default_timeout(self) -> None:
+        client = create_http_client("ghp_test123")
+        assert client.timeout.connect == 30.0
+
+    def test_custom_timeout(self) -> None:
+        client = create_http_client("ghp_test123", timeout=60.0)
+        assert client.timeout.connect == 60.0

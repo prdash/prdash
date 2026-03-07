@@ -7,7 +7,7 @@ import asyncio
 import httpx
 
 from gh_review_dashboard.config import AppConfig, QueryGroupConfig
-from gh_review_dashboard.exceptions import AuthError, GitHubAPIError
+from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkError
 from gh_review_dashboard.github.queries import (
     DEFAULT_PAGE_SIZE,
     PR_SEARCH_QUERY,
@@ -35,12 +35,15 @@ class GitHubClient:
                 "/graphql", json={"query": query, "variables": variables}
             )
         except httpx.TimeoutException as e:
-            raise GitHubAPIError(f"Request timed out: {e}") from e
+            raise NetworkError(f"Request timed out: {e}") from e
         except httpx.RequestError as e:
-            raise GitHubAPIError(f"Network error: {e}") from e
+            raise NetworkError(f"Network error: {e}") from e
 
         if response.status_code == 401:
-            raise AuthError("GitHub token is invalid or expired")
+            raise AuthError(
+                "GitHub token is invalid or expired. "
+                "Run 'gh auth login' to re-authenticate."
+            )
         if response.status_code == 403:
             raise GitHubAPIError("GitHub API rate limit exceeded or insufficient permissions")
 
@@ -94,8 +97,12 @@ class GitHubClient:
 
     async def fetch_all_groups(
         self, config: AppConfig
-    ) -> list[QueryGroupResult]:
-        """Fetch PRs for all enabled query groups in parallel."""
+    ) -> tuple[list[QueryGroupResult], list[tuple[str, Exception]]]:
+        """Fetch PRs for all enabled query groups in parallel.
+
+        Returns:
+            A tuple of (successful results, list of (group_name, exception) for failures).
+        """
         enabled_groups = [g for g in config.query_groups if g.enabled]
 
         results = await asyncio.gather(
@@ -104,19 +111,21 @@ class GitHubClient:
         )
 
         group_results: list[QueryGroupResult] = []
-        for result in results:
+        errors: list[tuple[str, Exception]] = []
+        for group, result in zip(enabled_groups, results):
             if isinstance(result, Exception):
-                continue
-            group_results.append(result)
+                errors.append((group.name, result))
+            else:
+                group_results.append(result)
 
-        return group_results
+        return group_results, errors
 
     async def close(self) -> None:
         """Close the underlying HTTP client."""
         await self._client.aclose()
 
 
-def create_http_client(token: str) -> httpx.AsyncClient:
+def create_http_client(token: str, timeout: float = 30.0) -> httpx.AsyncClient:
     """Create a configured httpx AsyncClient for the GitHub API."""
     return httpx.AsyncClient(
         base_url="https://api.github.com",
@@ -124,5 +133,5 @@ def create_http_client(token: str) -> httpx.AsyncClient:
             "Authorization": f"Bearer {token}",
             "Accept": "application/json",
         },
-        timeout=httpx.Timeout(30.0),
+        timeout=httpx.Timeout(timeout),
     )
