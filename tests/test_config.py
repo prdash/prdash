@@ -1,6 +1,7 @@
 """Tests for the configuration system."""
 
 import textwrap
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -9,7 +10,9 @@ from gh_review_dashboard.config import (
     AppConfig,
     QueryGroupConfig,
     QueryGroupType,
+    RepoConfig,
     load_config,
+    save_config,
 )
 from gh_review_dashboard.exceptions import ConfigError
 
@@ -170,6 +173,70 @@ class TestQueryGroupConfig:
             name="Labeled",
         )
         assert group.labels == []
+
+
+class TestSaveConfig:
+    def _make_config(self, **overrides: object) -> AppConfig:
+        defaults: dict = {
+            "repo": RepoConfig(org="test-org", name="test-repo"),
+            "username": "testuser",
+            "team_slugs": ["team-a", "team-b"],
+            "poll_interval": 120,
+        }
+        defaults.update(overrides)
+        return AppConfig(**defaults)
+
+    def test_round_trip(self, tmp_path: Path) -> None:
+        config = self._make_config()
+        path = tmp_path / "config.toml"
+        save_config(config, path)
+        loaded = load_config(path)
+
+        assert loaded.repo.org == config.repo.org
+        assert loaded.repo.name == config.repo.name
+        assert loaded.username == config.username
+        assert loaded.team_slugs == config.team_slugs
+        assert loaded.poll_interval == config.poll_interval
+
+    def test_creates_parent_dirs(self, tmp_path: Path) -> None:
+        path = tmp_path / "nested" / "dir" / "config.toml"
+        config = self._make_config()
+        save_config(config, path)
+        assert path.exists()
+
+    def test_output_is_valid_toml(self, tmp_path: Path) -> None:
+        config = self._make_config()
+        path = tmp_path / "config.toml"
+        save_config(config, path)
+
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+        assert data["username"] == "testuser"
+        assert data["repo"]["org"] == "test-org"
+
+    def test_round_trip_with_label_groups(self, tmp_path: Path) -> None:
+        groups = [
+            QueryGroupConfig(
+                type=QueryGroupType.LABEL,
+                name="Priority",
+                labels=["priority/high", "priority/critical"],
+                enabled=True,
+            ),
+        ]
+        config = self._make_config(query_groups=groups)
+        path = tmp_path / "config.toml"
+        save_config(config, path)
+        loaded = load_config(path)
+
+        assert len(loaded.query_groups) == 1
+        assert loaded.query_groups[0].labels == ["priority/high", "priority/critical"]
+
+    def test_round_trip_empty_team_slugs(self, tmp_path: Path) -> None:
+        config = self._make_config(team_slugs=[])
+        path = tmp_path / "config.toml"
+        save_config(config, path)
+        loaded = load_config(path)
+        assert loaded.team_slugs == []
 
 
 class TestCustomQueryGroups:

@@ -1,11 +1,13 @@
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal
+from textual.timer import Timer
 from textual import on, work
 from textual.widgets import Footer, Header
 
 from gh_review_dashboard.config import AppConfig
 from gh_review_dashboard.github.client import GitHubClient
+from gh_review_dashboard.screens.settings import SettingsScreen
 from gh_review_dashboard.widgets import DetailPaneWidget, PRListWidget, PRSelected
 
 
@@ -16,6 +18,7 @@ class ReviewDashboardApp(App):
         Binding("q", "quit", "Quit"),
         Binding("tab", "switch_pane", "Switch Pane"),
         Binding("r", "refresh", "Refresh"),
+        Binding("S", "settings", "Settings"),
     ]
 
     def __init__(
@@ -28,6 +31,7 @@ class ReviewDashboardApp(App):
         self.config = config
         self.github_client = github_client
         self._seen_pr_ids: set[str] = set()
+        self._refresh_timer: Timer | None = None
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -41,7 +45,9 @@ class ReviewDashboardApp(App):
         self.query_one("#pr-list-view").focus()
         if self.github_client is not None and self.config is not None:
             self.refresh_data()
-            self.set_interval(self.config.poll_interval, self.refresh_data)
+            self._refresh_timer = self.set_interval(
+                self.config.poll_interval, self.refresh_data
+            )
 
     def action_switch_pane(self) -> None:
         """Toggle focus between the PR list and detail scroll pane."""
@@ -66,6 +72,23 @@ class ReviewDashboardApp(App):
         pr_list.update_data(groups, seen_ids=self._seen_pr_ids)
         new_ids = {pr.id for group in groups for pr in group.pull_requests}
         self._seen_pr_ids = new_ids
+
+    def action_settings(self) -> None:
+        """Open the settings screen."""
+        if self.config is not None:
+            self.push_screen(SettingsScreen(self.config), callback=self._on_settings_result)
+
+    def _on_settings_result(self, new_config: AppConfig | None) -> None:
+        """Handle settings screen dismissal."""
+        if new_config is None:
+            return
+        self.config = new_config
+        if self._refresh_timer is not None:
+            self._refresh_timer.stop()
+        self._refresh_timer = self.set_interval(
+            new_config.poll_interval, self.refresh_data
+        )
+        self.refresh_data()
 
     @on(PRSelected)
     def handle_pr_selected(self, event: PRSelected) -> None:

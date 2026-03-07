@@ -7,14 +7,19 @@ Tech stack: Python, Textual (TUI), httpx + GitHub GraphQL API, Pydantic v2, TOML
 
 ```
 src/gh_review_dashboard/      # Main package
-  __main__.py                  # Entry point
+  __main__.py                  # Entry point (wizard/dashboard lifecycle)
   app.py                       # Textual App subclass
-  config.py                    # TOML config loading, Pydantic models
+  config.py                    # TOML config loading/saving, Pydantic models
+  detect.py                    # Auto-detection helpers (git remote, username, teams)
   models.py                    # PR data models (PullRequest, Reviewer, etc.)
   github/                      # GitHub API subpackage
     __init__.py                # Re-exports GitHubClient, build_search_query
     client.py                  # Async GraphQL client (GitHubClient)
     queries.py                 # GraphQL query template + search builder
+  screens/                     # Textual Screen modules
+    __init__.py                # Re-exports SetupWizardApp, SettingsScreen
+    setup_wizard.py            # First-run 4-step setup wizard
+    settings.py                # In-app settings screen (S keybinding)
   widgets/                     # Textual widget modules
     pr_list.py                 # Left pane: PR list with collapsible groups
     detail_pane.py             # Right pane: PR detail view

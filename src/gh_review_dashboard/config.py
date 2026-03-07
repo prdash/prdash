@@ -1,5 +1,7 @@
 """TOML-based configuration loading and Pydantic models."""
 
+import os
+import tempfile
 import tomllib
 from enum import Enum
 from pathlib import Path
@@ -98,3 +100,64 @@ def load_config(path: Path | None = None) -> AppConfig:
         return AppConfig(**data)
     except ValidationError as e:
         raise ConfigError(f"Invalid configuration in {config_path}:\n{e}") from e
+
+
+def _serialize_config_toml(config: AppConfig) -> str:
+    """Serialize an AppConfig to TOML-formatted string."""
+    lines: list[str] = []
+
+    lines.append(f'username = "{config.username}"')
+    if config.team_slugs:
+        slugs = ", ".join(f'"{s}"' for s in config.team_slugs)
+        lines.append(f"team_slugs = [{slugs}]")
+    else:
+        lines.append("team_slugs = []")
+    lines.append(f"poll_interval = {config.poll_interval}")
+
+    lines.append("")
+    lines.append("[repo]")
+    lines.append(f'org = "{config.repo.org}"')
+    lines.append(f'name = "{config.repo.name}"')
+
+    for group in config.query_groups:
+        lines.append("")
+        lines.append("[[query_groups]]")
+        lines.append(f'type = "{group.type.value}"')
+        lines.append(f'name = "{group.name}"')
+        if group.labels:
+            labels = ", ".join(f'"{l}"' for l in group.labels)
+            lines.append(f"labels = [{labels}]")
+        lines.append(f"enabled = {'true' if group.enabled else 'false'}")
+
+    lines.append("")  # trailing newline
+    return "\n".join(lines)
+
+
+def save_config(config: AppConfig, path: Path | None = None) -> None:
+    """Save configuration to a TOML file atomically.
+
+    Creates parent directories if needed. Writes to a temp file
+    then atomically replaces the target.
+
+    Args:
+        config: The AppConfig to save.
+        path: Target path. Defaults to CONFIG_FILE.
+    """
+    config_path = path or CONFIG_FILE
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+
+    content = _serialize_config_toml(config)
+
+    fd, tmp_path = tempfile.mkstemp(
+        dir=config_path.parent, suffix=".tmp", prefix=".config_"
+    )
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write(content)
+        os.replace(tmp_path, config_path)
+    except BaseException:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise

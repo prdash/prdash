@@ -56,6 +56,20 @@ Depends on Phase 4.
 | T11 | Error handling & edge cases (API errors, no PRs found, auth failures, network timeouts, graceful degradation) | T03, T04, T06, T07, T10 | not started |
 | T12 | README & usage documentation (installation, configuration, usage, keybindings) | all prior tasks | not started |
 
+## Phase 6: Setup & Settings
+
+Depends on Phase 2 (T02, T03).
+
+| ID | Task | Dependencies | Status |
+|---|---|---|---|
+| T13 | Auto-detection helpers (git remote parsing, username from token, team slugs from API) | T03 | completed |
+| T14 | Config serialization (save_config function, TOML writing, atomic save) | T02 | completed |
+| T15 | Setup wizard screens (4-step Textual Screen wizard with auto-fill, validation) | T13, T14 | completed |
+| T16 | Wizard lifecycle integration (launch wizard when no config exists, then start dashboard) | T15 | completed |
+| T17 | In-app settings screen (S keybinding, edit essentials, immediate save + re-fetch) | T14, T15 | completed |
+| T18 | Setup/settings polish (end-to-end tests, edge cases, documentation updates) | T16, T17 | completed |
+| T19 | Query group settings screen (add/remove/reorder/toggle query groups in-app) | T17 | not started |
+
 ## Feature Coverage
 
 All features from PRODUCT_GUIDELINES.md are covered:
@@ -67,7 +81,9 @@ All features from PRODUCT_GUIDELINES.md are covered:
 - **Keybindings** (j/k, arrows, Enter, r/R): T08, T09
 - **Open in browser**: T09
 - **Refresh** (auto, manual, new-item indicator): T10
-- **Configuration** (TOML, repo, username, teams, poll interval, groups): T02
+- **Configuration** (TOML, repo, username, teams, poll interval, groups): T02, T14
 - **Auth via `gh` CLI**: T03
+- **Setup wizard** (auto-detect, 4-step first-run): T13, T15, T16
+- **In-app settings** (S key, edit + save + refresh): T17
 - **Error handling**: T11
 - **Documentation**: T12
