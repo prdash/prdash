@@ -15,9 +15,13 @@ from gh_review_dashboard.widgets.pr_list import (
 )
 
 
+def _make_app():
+    return ReviewDashboardApp()
+
+
 @pytest.mark.asyncio
 async def test_pr_list_widget_exists_in_app():
-    app = ReviewDashboardApp()
+    app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
         assert widget is not None
@@ -25,7 +29,7 @@ async def test_pr_list_widget_exists_in_app():
 
 @pytest.mark.asyncio
 async def test_update_data_creates_group_headers(sample_groups):
-    app = ReviewDashboardApp()
+    app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
         widget.update_data(sample_groups)
@@ -37,7 +41,7 @@ async def test_update_data_creates_group_headers(sample_groups):
 
 @pytest.mark.asyncio
 async def test_empty_group_is_collapsed(sample_groups):
-    app = ReviewDashboardApp()
+    app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
         widget.update_data(sample_groups)
@@ -54,7 +58,7 @@ async def test_empty_group_is_collapsed(sample_groups):
 
 @pytest.mark.asyncio
 async def test_pr_rows_created_for_prs(sample_groups):
-    app = ReviewDashboardApp()
+    app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
         widget.update_data(sample_groups)
@@ -67,7 +71,7 @@ async def test_pr_rows_created_for_prs(sample_groups):
 
 @pytest.mark.asyncio
 async def test_pr_row_has_pr_data(sample_pr):
-    app = ReviewDashboardApp()
+    app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
         widget.update_data([
@@ -88,7 +92,7 @@ async def test_pr_row_has_pr_data(sample_pr):
 @pytest.mark.asyncio
 async def test_pr_row_displays_status_icons(sample_pr):
     """PR with failing CI and changes_requested review should show ! and x."""
-    app = ReviewDashboardApp()
+    app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
         widget.update_data([
@@ -108,7 +112,7 @@ async def test_pr_row_displays_status_icons(sample_pr):
 
 @pytest.mark.asyncio
 async def test_update_data_replaces_previous(sample_groups, sample_pr_minimal):
-    app = ReviewDashboardApp()
+    app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
         widget.update_data(sample_groups)
@@ -133,7 +137,7 @@ async def test_update_data_replaces_previous(sample_groups, sample_pr_minimal):
 
 @pytest.mark.asyncio
 async def test_j_k_moves_cursor(sample_pr, sample_pr_minimal):
-    app = ReviewDashboardApp()
+    app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
         widget.update_data([
@@ -165,7 +169,7 @@ async def test_j_k_moves_cursor(sample_pr, sample_pr_minimal):
 
 @pytest.mark.asyncio
 async def test_enter_toggles_group(sample_pr, sample_pr_minimal):
-    app = ReviewDashboardApp()
+    app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
         widget.update_data([
@@ -201,7 +205,7 @@ async def test_enter_toggles_group(sample_pr, sample_pr_minimal):
 
 @pytest.mark.asyncio
 async def test_collapsed_group_skips_prs(sample_groups):
-    app = ReviewDashboardApp()
+    app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
         widget.update_data(sample_groups)
@@ -216,7 +220,7 @@ async def test_collapsed_group_skips_prs(sample_groups):
 
 @pytest.mark.asyncio
 async def test_highlight_pr_emits_selected(sample_pr):
-    app = ReviewDashboardApp()
+    app = _make_app()
     messages: list[PRSelected] = []
 
     async with app.run_test(size=(120, 40)) as pilot:
@@ -247,7 +251,7 @@ async def test_highlight_pr_emits_selected(sample_pr):
 @pytest.mark.asyncio
 async def test_enter_on_pr_row_opens_browser(sample_pr):
     """Pressing Enter on a PR row should open the PR URL in the browser."""
-    app = ReviewDashboardApp()
+    app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
         widget.update_data([
@@ -271,3 +275,130 @@ async def test_enter_on_pr_row_opens_browser(sample_pr):
             await pilot.press("enter")
             await pilot.pause()
             mock_open.assert_called_once_with(sample_pr.url)
+
+
+# --- New-item indicator tests ---
+
+
+@pytest.mark.asyncio
+async def test_update_data_no_seen_ids_no_new_markers(sample_pr):
+    """On first load (seen_ids=None), no PRs should be marked new."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test",
+                group_type="test",
+                pull_requests=[sample_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert len(rows) == 1
+        assert rows[0].is_new is False
+
+
+@pytest.mark.asyncio
+async def test_update_data_empty_seen_ids_no_new_markers(sample_pr):
+    """On first load (seen_ids=set()), no PRs should be marked new."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data(
+            [
+                QueryGroupResult(
+                    group_name="Test",
+                    group_type="test",
+                    pull_requests=[sample_pr],
+                ),
+            ],
+            seen_ids=set(),
+        )
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert len(rows) == 1
+        assert rows[0].is_new is False
+
+
+@pytest.mark.asyncio
+async def test_update_data_with_seen_ids_marks_new_prs(sample_pr, sample_pr_minimal):
+    """PRs not in seen_ids should be marked as new."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        # PR_1 was seen before, PR_2 is new
+        widget.update_data(
+            [
+                QueryGroupResult(
+                    group_name="Test",
+                    group_type="test",
+                    pull_requests=[sample_pr, sample_pr_minimal],
+                ),
+            ],
+            seen_ids={"PR_1"},
+        )
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert len(rows) == 2
+        pr1_row = [r for r in rows if r.pr.id == "PR_1"][0]
+        pr2_row = [r for r in rows if r.pr.id == "PR_2"][0]
+        assert pr1_row.is_new is False
+        assert pr2_row.is_new is True
+
+
+@pytest.mark.asyncio
+async def test_new_pr_row_renders_marker(sample_pr):
+    """A new PR row should render the ● marker."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        # Pass seen_ids that don't include this PR
+        widget.update_data(
+            [
+                QueryGroupResult(
+                    group_name="Test",
+                    group_type="test",
+                    pull_requests=[sample_pr],
+                ),
+            ],
+            seen_ids={"OTHER_PR"},
+        )
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert rows[0].is_new is True
+        # Check the Static has the pr-row-new class
+        from textual.widgets import Static
+        label_static = rows[0].query_one(Static)
+        assert "pr-row-new" in label_static.classes
+        assert "●" in str(label_static.content)
+
+
+@pytest.mark.asyncio
+async def test_seen_pr_row_no_marker(sample_pr):
+    """A seen PR row should not render the ● marker."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data(
+            [
+                QueryGroupResult(
+                    group_name="Test",
+                    group_type="test",
+                    pull_requests=[sample_pr],
+                ),
+            ],
+            seen_ids={"PR_1"},
+        )
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert rows[0].is_new is False
+        from textual.widgets import Static
+        label_static = rows[0].query_one(Static)
+        assert "pr-row-new" not in label_static.classes
+        assert "●" not in str(label_static.content)

@@ -56,18 +56,21 @@ class GroupHeaderItem(ListItem):
 class PRRow(ListItem):
     """A single PR row in the list."""
 
-    def __init__(self, pr: PullRequest, **kwargs: object) -> None:
+    def __init__(self, pr: PullRequest, is_new: bool = False, **kwargs: object) -> None:
         self.pr = pr
+        self.is_new = is_new
         super().__init__(**kwargs)
 
     def compose(self):
         ci = _CI_ICONS.get(self.pr.ci_status, " ")
         review = _REVIEW_ICONS.get(self.pr.review_status, " ")
+        new_marker = "● " if self.is_new else "  "
         label = (
-            f"[{ci}][{review}] {self.pr.title}  "
+            f"{new_marker}[{ci}][{review}] {self.pr.title}  "
             f"{self.pr.author}  {self.pr.age_display}"
         )
-        yield Static(label, classes="pr-row-label")
+        classes = "pr-row-label pr-row-new" if self.is_new else "pr-row-label"
+        yield Static(label, classes=classes)
 
 
 class NavigableListView(ListView):
@@ -86,13 +89,15 @@ class PRListWidget(Widget):
         super().__init__(**kwargs)
         self._groups: list[QueryGroupResult] = []
         self._header_states: dict[str, bool] = {}
+        self._seen_ids: set[str] | None = None
 
     def compose(self):
         yield NavigableListView(id="pr-list-view")
 
-    def update_data(self, groups: list[QueryGroupResult]) -> None:
+    def update_data(self, groups: list[QueryGroupResult], seen_ids: set[str] | None = None) -> None:
         """Rebuild the widget tree with new PR data."""
         self._groups = groups
+        self._seen_ids = seen_ids
         # Initialize header states for new groups; preserve existing collapse state
         for group in groups:
             if group.group_name not in self._header_states:
@@ -127,7 +132,8 @@ class PRListWidget(Widget):
 
             if not collapsed:
                 for pr in group.pull_requests:
-                    items.append(PRRow(pr))
+                    is_new = bool(self._seen_ids) and pr.id not in self._seen_ids
+                    items.append(PRRow(pr, is_new=is_new))
                     item_ids.append(f"pr:{pr.id}")
 
         for item in items:
