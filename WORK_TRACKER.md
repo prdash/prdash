@@ -94,6 +94,14 @@ Depends on Phase 2 (T02, T04), Phase 3 (T06, T07), Phase 6 (T15, T17).
 |---|---|---|---|
 | T24 | CLI entry point (`ghrd` command via `[project.scripts]`, global install via `uv tool install`) | T01 | completed |
 
+## Phase 10: PR List Polish
+
+Depends on Phase 3 (T06).
+
+| ID | Task | Dependencies | Status |
+|---|---|---|---|
+| T25 | PR list readability (colored Rich markup status labels, multi-line rows, group separators, triangle arrows) | T06 | not started |
+
 ## Feature Coverage
 
 All features from PRODUCT_GUIDELINES.md are covered:
