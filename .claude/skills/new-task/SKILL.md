@@ -10,6 +10,8 @@ allowed-tools: Read, Grep, Glob, Edit, Write, Bash(git *), AskUserQuestion
 
 You are creating a new task specification for the GitHub Review Dashboard project. Follow these steps carefully.
 
+**IMPORTANT: No files should be touched or updated besides `WORK_TRACKER.md` and files under the `tasks/` directory.** Do not modify source code, tests, configuration, documentation, or any other project files during this workflow.
+
 ## Step 1 — Gather context
 
 1. Read `WORK_TRACKER.md` to understand current phases, existing tasks, and find the **highest task ID** (scan all phase tables for the largest `T{NN}` number).

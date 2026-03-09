@@ -278,6 +278,96 @@ async def test_enter_on_pr_row_opens_browser(sample_pr):
             mock_open.assert_called_once_with(sample_pr.url)
 
 
+# --- Readability improvement tests (T25) ---
+
+
+@pytest.mark.asyncio
+async def test_pr_row_renders_ci_label(sample_pr):
+    """PR with failing CI should show CI:fail in content."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test",
+                group_type="test",
+                pull_requests=[sample_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        from textual.widgets import Static
+        label_static = rows[0].query_one(Static)
+        assert "CI:fail" in str(label_static.content)
+
+
+@pytest.mark.asyncio
+async def test_pr_row_renders_review_label(sample_pr):
+    """PR with pending review should show Rev:pend in content."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test",
+                group_type="test",
+                pull_requests=[sample_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        from textual.widgets import Static
+        label_static = rows[0].query_one(Static)
+        assert "Rev:pend" in str(label_static.content)
+
+
+@pytest.mark.asyncio
+async def test_pr_row_is_multiline(sample_pr):
+    """PR row should render as two lines with title and @author."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test",
+                group_type="test",
+                pull_requests=[sample_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        from textual.widgets import Static
+        label_static = rows[0].query_one(Static)
+        content = str(label_static.content)
+        assert "\n" in content
+        assert sample_pr.title in content
+        assert f"@{sample_pr.author}" in content
+
+
+@pytest.mark.asyncio
+async def test_group_header_uses_triangle_arrows(sample_pr):
+    """Expanded group header should show ▼ triangle arrow."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test",
+                group_type="test",
+                pull_requests=[sample_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        headers = list(widget.query(GroupHeaderItem))
+        from textual.widgets import Static
+        label = headers[0].query_one(Static)
+        assert "▼" in str(label.content)
+
+
 # --- New-item indicator tests ---
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import webbrowser
 
+from rich.markup import escape
 from textual.binding import Binding
 from textual.message import Message
 from textual.widget import Widget
@@ -11,12 +12,17 @@ from textual.widgets import ListItem, ListView, Static
 
 from gh_review_dashboard.models import PullRequest, QueryGroupResult
 
-_CI_ICONS = {"passing": "*", "failing": "!", "pending": "~", "none": " "}
-_REVIEW_ICONS = {
-    "approved": "+",
-    "changes_requested": "x",
-    "pending": "?",
-    "none": " ",
+_CI_LABELS = {
+    "passing": "[green]CI:pass[/green]",
+    "failing": "[red]CI:fail[/red]",
+    "pending": "[yellow]CI:pend[/yellow]",
+    "none": "[dim]CI:--[/dim]",
+}
+_REVIEW_LABELS = {
+    "approved": "[green]Rev:ok[/green]",
+    "changes_requested": "[red]Rev:chg[/red]",
+    "pending": "[yellow]Rev:pend[/yellow]",
+    "none": "[dim]Rev:--[/dim]",
 }
 
 
@@ -39,7 +45,7 @@ class GroupHeaderItem(ListItem):
 
     @property
     def _arrow(self) -> str:
-        return ">" if self.collapsed else "v"
+        return "▶" if self.collapsed else "▼"
 
     def compose(self):
         yield Static(
@@ -69,15 +75,13 @@ class PRRow(ListItem):
         super().__init__(**kwargs)
 
     def compose(self):
-        ci = _CI_ICONS.get(self.pr.ci_status, " ")
-        review = _REVIEW_ICONS.get(self.pr.review_status, " ")
-        new_marker = "● " if self.is_new else "  "
-        label = (
-            f"{new_marker}[{ci}][{review}] {self.pr.title}  "
-            f"{self.pr.author}  {self.pr.age_display}"
-        )
+        ci_label = _CI_LABELS.get(self.pr.ci_status, "[dim]CI:--[/dim]")
+        review_label = _REVIEW_LABELS.get(self.pr.review_status, "[dim]Rev:--[/dim]")
+        new_marker = "[bold]● [/bold]" if self.is_new else "  "
+        line1 = f"{new_marker}{escape(self.pr.title)}"
+        line2 = f"  [dim]@{escape(self.pr.author)} · {self.pr.age_display}[/dim] · {ci_label} · {review_label}"
         classes = "pr-row-label pr-row-new" if self.is_new else "pr-row-label"
-        yield Static(label, classes=classes)
+        yield Static(f"{line1}\n{line2}", classes=classes)
 
 
 class NavigableListView(ListView):
@@ -129,11 +133,13 @@ class PRListWidget(Widget):
         items: list[ListItem] = []
         item_ids: list[str] = []
 
-        for group in self._groups:
+        for i, group in enumerate(self._groups):
             collapsed = self._header_states.get(group.group_name, False)
             header = GroupHeaderItem(
                 group.group_name, len(group.pull_requests), collapsed=collapsed,
             )
+            if i == 0:
+                header.add_class("first-group")
             items.append(header)
             item_ids.append(f"header:{group.group_name}")
 

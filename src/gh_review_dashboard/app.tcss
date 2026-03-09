@@ -29,12 +29,22 @@
 
 .pr-row-label {
     padding: 0 1;
+    height: auto;
 }
 
 .group-header-label {
     padding: 0 1;
     text-style: bold;
     background: $surface;
+    border-bottom: solid $surface-lighten-2;
+}
+
+GroupHeaderItem {
+    margin-top: 1;
+}
+
+GroupHeaderItem.first-group {
+    margin-top: 0;
 }
 
 .pr-row-new {

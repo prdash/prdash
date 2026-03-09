@@ -100,7 +100,7 @@ Depends on Phase 3 (T06).
 
 | ID | Task | Dependencies | Status |
 |---|---|---|---|
-| T25 | PR list readability (colored Rich markup status labels, multi-line rows, group separators, triangle arrows) | T06 | not started |
+| T25 | PR list readability (colored Rich markup status labels, multi-line rows, group separators, triangle arrows) | T06 | completed |
 
 ## Feature Coverage
 
