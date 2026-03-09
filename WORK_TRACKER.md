@@ -80,6 +80,14 @@ Depends on Phase 3 (T06) and Phase 4 (T10).
 |---|---|---|---|
 | T20 | Deduplicate PRs across query groups (assign each PR to highest-priority matching group, dedup at display layer) | T06, T10 | completed |
 
+## Phase 8: Cross-Repo
+
+Depends on Phase 2 (T02, T04), Phase 3 (T06, T07), Phase 6 (T15, T17).
+
+| ID | Task | Dependencies | Status |
+|---|---|---|---|
+| T23 | Cross-repo support (default to all repos like github.com/pulls/review-requested, optional repo filters, repo slug in PR list + detail pane, config migration from single repo to repos list) | T04, T06, T07, T02, T15, T17 | not started |
+
 ## Feature Coverage
 
 All features from PRODUCT_GUIDELINES.md are covered:
