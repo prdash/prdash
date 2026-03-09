@@ -69,7 +69,7 @@ Depends on Phase 2 (T02, T03).
 | T16 | Wizard lifecycle integration (launch wizard when no config exists, then start dashboard) | T15 | completed |
 | T17 | In-app settings screen (S keybinding, edit essentials, immediate save + re-fetch) | T14, T15 | completed |
 | T18 | Setup/settings polish (end-to-end tests, edge cases, documentation updates) | T16, T17 | completed |
-| T19 | Query group settings screen (add/remove/reorder/toggle query groups in-app) | T17 | not started |
+| T19 | Query group settings screen (add/remove/reorder/toggle query groups in-app) | T17 | completed |
 
 ## Phase 7: Deduplication
 

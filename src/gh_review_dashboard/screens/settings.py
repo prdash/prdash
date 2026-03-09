@@ -8,7 +8,8 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
-from gh_review_dashboard.config import AppConfig, RepoConfig, save_config
+from gh_review_dashboard.config import AppConfig, QueryGroupConfig, RepoConfig, save_config
+from gh_review_dashboard.screens.query_groups import QueryGroupsScreen
 
 
 class SettingsScreen(Screen[AppConfig | None]):
@@ -31,6 +32,7 @@ class SettingsScreen(Screen[AppConfig | None]):
     def __init__(self, config: AppConfig, **kwargs: object) -> None:
         super().__init__(**kwargs)
         self._config = config
+        self._query_groups: list[QueryGroupConfig] = list(config.query_groups)
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -73,6 +75,8 @@ class SettingsScreen(Screen[AppConfig | None]):
                 classes="settings-field",
             )
 
+            yield Button("Query Groups...", id="query-groups-btn")
+
             yield Static("", id="error-msg")
 
             with Horizontal(classes="settings-buttons"):
@@ -85,6 +89,17 @@ class SettingsScreen(Screen[AppConfig | None]):
             self.dismiss(None)
         elif event.button.id == "save-btn":
             self._save()
+        elif event.button.id == "query-groups-btn":
+            self.app.push_screen(
+                QueryGroupsScreen(self._query_groups),
+                callback=self._on_query_groups_result,
+            )
+
+    def _on_query_groups_result(
+        self, result: list[QueryGroupConfig] | None
+    ) -> None:
+        if result is not None:
+            self._query_groups = result
 
     def action_cancel(self) -> None:
         self.dismiss(None)
@@ -123,7 +138,7 @@ class SettingsScreen(Screen[AppConfig | None]):
             username=username,
             team_slugs=team_slugs,
             poll_interval=interval,
-            query_groups=list(self._config.query_groups),
+            query_groups=list(self._query_groups),
         )
 
         save_config(new_config)
