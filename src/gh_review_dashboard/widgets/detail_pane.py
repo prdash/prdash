@@ -7,7 +7,7 @@ from datetime import UTC, datetime
 from textual.binding import Binding
 from textual.containers import VerticalScroll
 from textual.widget import Widget
-from textual.widgets import Static
+from textual.widgets import Markdown, Static
 
 from gh_review_dashboard.models import PullRequest
 
@@ -38,7 +38,7 @@ def _format_metadata(pr: PullRequest) -> str:
 
 
 def _format_description(pr: PullRequest) -> str:
-    return pr.body or "(no description)"
+    return pr.body or "*No description provided.*"
 
 
 def _format_labels(pr: PullRequest) -> str:
@@ -103,7 +103,7 @@ class DetailPaneWidget(Widget):
                 id="detail-placeholder",
             )
             yield Static("", id="detail-metadata", classes="hidden detail-section")
-            yield Static("", id="detail-description", classes="hidden detail-section")
+            yield Markdown("", id="detail-description", classes="hidden detail-section")
             yield Static("", id="detail-labels", classes="hidden detail-section")
             yield Static("", id="detail-reviewers", classes="hidden detail-section")
             yield Static("", id="detail-checks", classes="hidden detail-section")
@@ -115,7 +115,6 @@ class DetailPaneWidget(Widget):
 
         sections = {
             "#detail-metadata": _format_metadata(pr),
-            "#detail-description": f"--- Description ---\n{_format_description(pr)}",
             "#detail-labels": f"--- Labels ---\n{_format_labels(pr)}",
             "#detail-reviewers": f"--- Reviewers ---\n{_format_reviewers(pr)}",
             "#detail-checks": f"--- CI Checks ---\n{_format_checks(pr)}",
@@ -125,6 +124,11 @@ class DetailPaneWidget(Widget):
             widget = self.query_one(selector, Static)
             widget.update(text)
             widget.remove_class("hidden")
+
+        desc_widget = self.query_one("#detail-description", Markdown)
+        desc_content = f"---\n### Description\n\n{_format_description(pr)}"
+        desc_widget.update(desc_content)
+        desc_widget.remove_class("hidden")
 
     def clear(self) -> None:
         """Show the empty/placeholder state."""

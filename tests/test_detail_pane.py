@@ -103,7 +103,7 @@ def test_format_description_with_body(sample_pr):
 
 
 def test_format_description_no_body(sample_pr_minimal):
-    assert "(no description)" in _format_description(sample_pr_minimal)
+    assert "*No description provided.*" in _format_description(sample_pr_minimal)
 
 
 def test_format_labels(sample_pr):
