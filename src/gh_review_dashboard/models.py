@@ -96,6 +96,21 @@ class QueryGroupResult(BaseModel):
     pull_requests: list[PullRequest] = Field(default_factory=list)
 
 
+def deduplicate_groups(groups: list[QueryGroupResult]) -> list[QueryGroupResult]:
+    """Assign each PR to the highest-priority group (first in list order)."""
+    seen: set[str] = set()
+    deduped: list[QueryGroupResult] = []
+    for group in groups:
+        filtered = [pr for pr in group.pull_requests if pr.id not in seen]
+        seen.update(pr.id for pr in filtered)
+        deduped.append(QueryGroupResult(
+            group_name=group.group_name,
+            group_type=group.group_type,
+            pull_requests=filtered,
+        ))
+    return deduped
+
+
 # --- Response parsers ---
 
 

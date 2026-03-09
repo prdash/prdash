@@ -6,7 +6,7 @@ from gh_review_dashboard.app import ReviewDashboardApp
 from gh_review_dashboard.config import AppConfig, QueryGroupConfig, QueryGroupType, RepoConfig
 from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkError
 from gh_review_dashboard.github.client import GitHubClient
-from gh_review_dashboard.models import QueryGroupResult
+from gh_review_dashboard.models import PullRequest, QueryGroupResult
 from gh_review_dashboard.widgets import DetailPaneWidget, PRListWidget
 
 
@@ -264,3 +264,33 @@ async def test_refresh_data_partial_group_errors(sample_pr):
         headers = list(pr_list.query(GroupHeaderItem))
         assert len(headers) == 1
         assert headers[0].group_name == "Direct"
+
+
+@pytest.mark.asyncio
+async def test_refresh_data_deduplicates_groups(sample_pr, sample_pr_minimal):
+    """refresh_data should deduplicate PRs across groups before updating the widget."""
+    # sample_pr appears in both groups — should only appear in "Review Requested"
+    groups = [
+        QueryGroupResult(
+            group_name="Review Requested",
+            group_type="review_requested",
+            pull_requests=[sample_pr, sample_pr_minimal],
+        ),
+        QueryGroupResult(
+            group_name="Authored",
+            group_type="authored",
+            pull_requests=[sample_pr],
+        ),
+    ]
+    app, mock_client = _make_app(groups)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+        pr_list = pilot.app.query_one(PRListWidget)
+        from gh_review_dashboard.widgets.pr_list import PRRow
+        pr_rows = list(pr_list.query(PRRow))
+        # Only 2 unique PRs should be shown, not 3
+        pr_ids = [row.pr.id for row in pr_rows]
+        assert pr_ids.count("PR_1") == 1
+        assert pr_ids.count("PR_2") == 1
+        assert len(pr_ids) == 2

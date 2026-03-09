@@ -7,8 +7,10 @@ from datetime import UTC, datetime, timedelta
 from gh_review_dashboard.models import (
     CheckRun,
     PullRequest,
+    QueryGroupResult,
     Reviewer,
     TimelineEvent,
+    deduplicate_groups,
     parse_pr_node,
     parse_search_results,
 )
@@ -328,3 +330,81 @@ class TestParseSearchResults:
         assert prs == []
         assert has_next is False
         assert cursor is None
+
+
+# --- deduplicate_groups ---
+
+
+class TestDeduplicateGroups:
+    def _make_group(self, name: str, pr_ids: list[str]) -> QueryGroupResult:
+        prs = [_make_pr(id=pid, number=i) for i, pid in enumerate(pr_ids, 1)]
+        return QueryGroupResult(group_name=name, group_type="test", pull_requests=prs)
+
+    def test_no_overlap(self) -> None:
+        groups = [
+            self._make_group("A", ["PR_1", "PR_2"]),
+            self._make_group("B", ["PR_3", "PR_4"]),
+        ]
+        result = deduplicate_groups(groups)
+        assert [pr.id for pr in result[0].pull_requests] == ["PR_1", "PR_2"]
+        assert [pr.id for pr in result[1].pull_requests] == ["PR_3", "PR_4"]
+
+    def test_partial_overlap(self) -> None:
+        groups = [
+            self._make_group("A", ["PR_1", "PR_2"]),
+            self._make_group("B", ["PR_2", "PR_3"]),
+            self._make_group("C", ["PR_1", "PR_4"]),
+        ]
+        result = deduplicate_groups(groups)
+        assert [pr.id for pr in result[0].pull_requests] == ["PR_1", "PR_2"]
+        assert [pr.id for pr in result[1].pull_requests] == ["PR_3"]
+        assert [pr.id for pr in result[2].pull_requests] == ["PR_4"]
+
+    def test_full_overlap_second_group_empty(self) -> None:
+        groups = [
+            self._make_group("A", ["PR_1", "PR_2"]),
+            self._make_group("B", ["PR_1", "PR_2"]),
+        ]
+        result = deduplicate_groups(groups)
+        assert [pr.id for pr in result[0].pull_requests] == ["PR_1", "PR_2"]
+        assert result[1].pull_requests == []
+
+    def test_empty_groups_pass_through(self) -> None:
+        groups = [
+            self._make_group("A", ["PR_1"]),
+            self._make_group("B", []),
+            self._make_group("C", ["PR_2"]),
+        ]
+        result = deduplicate_groups(groups)
+        assert len(result) == 3
+        assert result[1].pull_requests == []
+        assert [pr.id for pr in result[2].pull_requests] == ["PR_2"]
+
+    def test_single_group_noop(self) -> None:
+        groups = [self._make_group("A", ["PR_1", "PR_2", "PR_3"])]
+        result = deduplicate_groups(groups)
+        assert [pr.id for pr in result[0].pull_requests] == ["PR_1", "PR_2", "PR_3"]
+
+    def test_order_matters(self) -> None:
+        """Same PRs in different group order should yield different assignment."""
+        groups_ab = [
+            self._make_group("A", ["PR_1", "PR_2"]),
+            self._make_group("B", ["PR_1", "PR_2"]),
+        ]
+        groups_ba = [
+            self._make_group("B", ["PR_1", "PR_2"]),
+            self._make_group("A", ["PR_1", "PR_2"]),
+        ]
+        result_ab = deduplicate_groups(groups_ab)
+        result_ba = deduplicate_groups(groups_ba)
+        # First group gets all PRs, second gets none
+        assert [pr.id for pr in result_ab[0].pull_requests] == ["PR_1", "PR_2"]
+        assert result_ab[1].pull_requests == []
+        assert [pr.id for pr in result_ba[0].pull_requests] == ["PR_1", "PR_2"]
+        assert result_ba[1].pull_requests == []
+
+    def test_does_not_mutate_originals(self) -> None:
+        original = self._make_group("A", ["PR_1", "PR_2"])
+        groups = [original, self._make_group("B", ["PR_1"])]
+        deduplicate_groups(groups)
+        assert len(original.pull_requests) == 2

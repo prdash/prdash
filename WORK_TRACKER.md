@@ -77,7 +77,7 @@ Depends on Phase 3 (T06) and Phase 4 (T10).
 
 | ID | Task | Dependencies | Status |
 |---|---|---|---|
-| T20 | Deduplicate PRs across query groups (assign each PR to highest-priority matching group, dedup at display layer) | T06, T10 | not started |
+| T20 | Deduplicate PRs across query groups (assign each PR to highest-priority matching group, dedup at display layer) | T06, T10 | completed |
 
 ## Feature Coverage
 
