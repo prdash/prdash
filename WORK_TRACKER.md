@@ -88,6 +88,12 @@ Depends on Phase 2 (T02, T04), Phase 3 (T06, T07), Phase 6 (T15, T17).
 |---|---|---|---|
 | T23 | Cross-repo support (default to all repos like github.com/pulls/review-requested, optional repo filters, repo slug in PR list + detail pane, config migration from single repo to repos list) | T04, T06, T07, T02, T15, T17 | not started |
 
+## Phase 9: Distribution
+
+| ID | Task | Dependencies | Status |
+|---|---|---|---|
+| T24 | CLI entry point (`ghrd` command via `[project.scripts]`, global install via `uv tool install`) | T01 | completed |
+
 ## Feature Coverage
 
 All features from PRODUCT_GUIDELINES.md are covered:

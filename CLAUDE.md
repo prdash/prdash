@@ -45,7 +45,8 @@ pyproject.toml                 # Project metadata and dependencies
 
 ```bash
 uv sync                                    # Install/update dependencies
-uv run python -m gh_review_dashboard       # Run the app
+uv run ghrd                                # Run the app (or just `ghrd` if globally installed)
+uv run python -m gh_review_dashboard       # Run the app (alternative)
 uv run pytest                              # Run all tests
 uv run pytest tests/test_config.py         # Run a specific test file
 uv run pytest -x                           # Stop on first failure

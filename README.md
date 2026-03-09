@@ -10,16 +10,32 @@ Terminal-based TUI dashboard for monitoring GitHub pull requests that need your 
 
 ## Installation
 
+### From source (development)
+
 ```bash
 git clone https://github.com/your-org/gh-review-dashboard.git
 cd gh-review-dashboard
 uv sync
 ```
 
+### Global install
+
+```bash
+uv tool install /path/to/gh-review-dashboard
+```
+
+This makes the `ghrd` command available globally.
+
 ## Quick Start
 
 ```bash
-uv run python -m gh_review_dashboard
+ghrd
+```
+
+Or, if running from the project directory without a global install:
+
+```bash
+uv run ghrd
 ```
 
 On first run, a **setup wizard** walks you through configuration:
@@ -98,7 +114,7 @@ enabled = false
 ## Usage
 
 ```bash
-uv run python -m gh_review_dashboard
+ghrd
 ```
 
 The dashboard has a split-pane layout:

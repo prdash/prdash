@@ -17,6 +17,9 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/gh_review_dashboard"]
 
+[project.scripts]
+ghrd = "gh_review_dashboard.__main__:main"
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.2",
