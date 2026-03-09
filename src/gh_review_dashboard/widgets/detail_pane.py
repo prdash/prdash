@@ -13,6 +13,14 @@ from gh_review_dashboard.models import PullRequest
 
 _CHECK_ICONS = {"SUCCESS": "*", "FAILURE": "!", None: "~"}
 
+_REVIEWER_STATUS: dict[str, tuple[str, str]] = {
+    "APPROVED": ("✓", "approved"),
+    "CHANGES_REQUESTED": ("✗", "changes requested"),
+    "PENDING": ("○", "pending"),
+    "COMMENTED": ("💬", "commented"),
+    "DISMISSED": ("—", "dismissed"),
+}
+
 
 def _relative_time(dt: datetime) -> str:
     """Return a short relative time string like '2d ago'."""
@@ -50,7 +58,8 @@ def _format_reviewers(pr: PullRequest) -> str:
         return "None"
     lines = []
     for r in pr.reviewers:
-        lines.append(f"  {r.login:<20} {r.state}")
+        icon, label = _REVIEWER_STATUS.get(r.state, ("?", r.state))
+        lines.append(f"  {icon} {r.login} — {label}")
     return "\n".join(lines)
 
 
@@ -103,9 +112,9 @@ class DetailPaneWidget(Widget):
                 id="detail-placeholder",
             )
             yield Static("", id="detail-metadata", classes="hidden detail-section")
+            yield Static("", id="detail-reviewers", classes="hidden detail-section")
             yield Markdown("", id="detail-description", classes="hidden detail-section")
             yield Static("", id="detail-labels", classes="hidden detail-section")
-            yield Static("", id="detail-reviewers", classes="hidden detail-section")
             yield Static("", id="detail-checks", classes="hidden detail-section")
             yield Static("", id="detail-timeline", classes="hidden detail-section")
 
@@ -115,8 +124,8 @@ class DetailPaneWidget(Widget):
 
         sections = {
             "#detail-metadata": _format_metadata(pr),
-            "#detail-labels": f"--- Labels ---\n{_format_labels(pr)}",
             "#detail-reviewers": f"--- Reviewers ---\n{_format_reviewers(pr)}",
+            "#detail-labels": f"--- Labels ---\n{_format_labels(pr)}",
             "#detail-checks": f"--- CI Checks ---\n{_format_checks(pr)}",
             "#detail-timeline": f"--- Timeline ---\n{_format_timeline(pr)}",
         }

@@ -1,7 +1,10 @@
 """Tests for the detail pane widget."""
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
+from gh_review_dashboard.models import PullRequest
 from gh_review_dashboard.app import ReviewDashboardApp
 from gh_review_dashboard.widgets.detail_pane import (
     DetailPaneWidget,
@@ -95,6 +98,17 @@ async def test_clear_restores_placeholder(sample_pr):
             assert "hidden" in s.classes
 
 
+@pytest.mark.asyncio
+async def test_section_order_reviewers_before_description():
+    app = ReviewDashboardApp()
+    async with app.run_test(size=(120, 40)) as pilot:
+        scroll = pilot.app.query_one("#detail-scroll")
+        children_ids = [c.id for c in scroll.children if c.id]
+        reviewers_idx = children_ids.index("detail-reviewers")
+        description_idx = children_ids.index("detail-description")
+        assert reviewers_idx < description_idx
+
+
 # --- Unit tests for formatters ---
 
 
@@ -118,14 +132,28 @@ def test_format_labels_empty(sample_pr_minimal):
 
 def test_format_reviewers(sample_pr):
     result = _format_reviewers(sample_pr)
-    assert "bob" in result
-    assert "APPROVED" in result
-    assert "carol" in result
-    assert "PENDING" in result
+    assert "✓ bob — approved" in result
+    assert "○ carol — pending" in result
 
 
 def test_format_reviewers_empty(sample_pr_minimal):
     assert _format_reviewers(sample_pr_minimal) == "None"
+
+
+def test_format_reviewers_unknown_state():
+    from gh_review_dashboard.models import Reviewer
+
+    pr = PullRequest(
+        id="PR_3",
+        number=50,
+        title="Test",
+        author="alice",
+        url="https://github.com/org/repo/pull/50",
+        created_at=datetime.now(UTC) - timedelta(hours=1),
+        reviewers=[Reviewer(login="dave", state="STALE")],
+    )
+    result = _format_reviewers(pr)
+    assert "? dave — STALE" in result
 
 
 def test_format_checks(sample_pr):
