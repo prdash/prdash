@@ -298,7 +298,7 @@ async def test_pr_row_renders_ci_label(sample_pr):
 
         rows = list(widget.query(PRRow))
         from textual.widgets import Static
-        label_static = rows[0].query_one(Static)
+        label_static = rows[0].query_one(".pr-row-label", Static)
         assert "CI:fail" in str(label_static.content)
 
 
@@ -319,7 +319,7 @@ async def test_pr_row_renders_review_label(sample_pr):
 
         rows = list(widget.query(PRRow))
         from textual.widgets import Static
-        label_static = rows[0].query_one(Static)
+        label_static = rows[0].query_one(".pr-row-label", Static)
         assert "Rev:pend" in str(label_static.content)
 
 
@@ -340,7 +340,7 @@ async def test_pr_row_is_multiline(sample_pr):
 
         rows = list(widget.query(PRRow))
         from textual.widgets import Static
-        label_static = rows[0].query_one(Static)
+        label_static = rows[0].query_one(".pr-row-label", Static)
         content = str(label_static.content)
         assert "\n" in content
         assert sample_pr.title in content
@@ -464,9 +464,10 @@ async def test_new_pr_row_renders_marker(sample_pr):
         assert rows[0].is_new is True
         # Check the Static has the pr-row-new class
         from textual.widgets import Static
-        label_static = rows[0].query_one(Static)
+        label_static = rows[0].query_one(".pr-row-label", Static)
         assert "pr-row-new" in label_static.classes
-        assert "●" in str(label_static.content)
+        marker_static = rows[0].query_one(".pr-row-marker", Static)
+        assert "●" in str(marker_static.content)
 
 
 @pytest.mark.asyncio
@@ -490,9 +491,10 @@ async def test_seen_pr_row_no_marker(sample_pr):
         rows = list(widget.query(PRRow))
         assert rows[0].is_new is False
         from textual.widgets import Static
-        label_static = rows[0].query_one(Static)
+        label_static = rows[0].query_one(".pr-row-label", Static)
         assert "pr-row-new" not in label_static.classes
-        assert "●" not in str(label_static.content)
+        marker_static = rows[0].query_one(".pr-row-marker", Static)
+        assert "●" not in str(marker_static.content)
 
 
 # --- Empty group placeholder tests ---
@@ -633,7 +635,7 @@ async def test_approved_row_gets_css_class():
         rows = list(widget.query(PRRow))
         assert rows[0].approved_by_me is True
         from textual.widgets import Static
-        label = rows[0].query_one(Static)
+        label = rows[0].query_one(".pr-row-label", Static)
         assert "pr-row-approved" in label.classes
 
 
@@ -653,7 +655,7 @@ async def test_authored_group_rows_no_approved_class():
         rows = list(widget.query(PRRow))
         assert rows[0].approved_by_me is False
         from textual.widgets import Static
-        label = rows[0].query_one(Static)
+        label = rows[0].query_one(".pr-row-label", Static)
         assert "pr-row-approved" not in label.classes
 
 
@@ -672,5 +674,5 @@ async def test_no_username_no_approved_class():
         rows = list(widget.query(PRRow))
         assert rows[0].approved_by_me is False
         from textual.widgets import Static
-        label = rows[0].query_one(Static)
+        label = rows[0].query_one(".pr-row-label", Static)
         assert "pr-row-approved" not in label.classes

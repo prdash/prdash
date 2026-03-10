@@ -8,6 +8,7 @@ from rich.markup import escape
 from textual.binding import Binding
 from textual.message import Message
 from textual.widget import Widget
+from textual.containers import Horizontal
 from textual.widgets import ListItem, ListView, Static
 
 from gh_review_dashboard.models import PullRequest, QueryGroupResult
@@ -78,13 +79,15 @@ class PRRow(ListItem):
     def compose(self):
         ci_label = _CI_LABELS.get(self.pr.ci_status, "[dim]CI:--[/dim]")
         review_label = _REVIEW_LABELS.get(self.pr.review_status, "[dim]Rev:--[/dim]")
-        new_marker = "[bold]● [/bold]" if self.is_new else "  "
-        line1 = f"{new_marker}{escape(self.pr.title)}"
-        line2 = f"  [dim]@{escape(self.pr.author)} · {self.pr.age_display}[/dim] · {ci_label} · {review_label}"
+        marker_text = "[bold]●[/bold]" if self.is_new else " "
+        title_line = escape(self.pr.title)
+        meta_line = f"[dim]@{escape(self.pr.author)} · {self.pr.age_display}[/dim] · {ci_label} · {review_label}"
         classes = "pr-row-label pr-row-new" if self.is_new else "pr-row-label"
         if self.approved_by_me:
             classes += " pr-row-approved"
-        yield Static(f"{line1}\n{line2}", classes=classes)
+        with Horizontal(classes="pr-row-container"):
+            yield Static(marker_text, classes="pr-row-marker")
+            yield Static(f"{title_line}\n{meta_line}", classes=classes)
 
 
 class NavigableListView(ListView):

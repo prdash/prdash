@@ -27,9 +27,19 @@
     color: $text-muted;
 }
 
-.pr-row-label {
-    padding: 0 1;
+.pr-row-container {
     height: auto;
+}
+
+.pr-row-marker {
+    width: 2;
+    height: auto;
+}
+
+.pr-row-label {
+    padding: 0 1 0 0;
+    height: auto;
+    width: 1fr;
 }
 
 .group-header-label {
