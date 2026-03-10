@@ -111,12 +111,12 @@ class DetailPaneWidget(Widget):
                 "Select a pull request from the list\nto view its details.",
                 id="detail-placeholder",
             )
-            yield Static("", id="detail-metadata", classes="hidden detail-section")
-            yield Static("", id="detail-reviewers", classes="hidden detail-section")
+            yield Static("", id="detail-metadata", classes="hidden detail-section", markup=False)
+            yield Static("", id="detail-reviewers", classes="hidden detail-section", markup=False)
             yield Markdown("", id="detail-description", classes="hidden detail-section")
-            yield Static("", id="detail-labels", classes="hidden detail-section")
-            yield Static("", id="detail-checks", classes="hidden detail-section")
-            yield Static("", id="detail-timeline", classes="hidden detail-section")
+            yield Static("", id="detail-labels", classes="hidden detail-section", markup=False)
+            yield Static("", id="detail-checks", classes="hidden detail-section", markup=False)
+            yield Static("", id="detail-timeline", classes="hidden detail-section", markup=False)
 
     def show_pr(self, pr: PullRequest) -> None:
         """Display details for the given PR."""
