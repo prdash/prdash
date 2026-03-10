@@ -57,7 +57,7 @@ GroupHeaderItem.first-group {
     margin-top: 0;
 }
 
-GroupHeaderItem.--highlight .group-header-label {
+GroupHeaderItem.-highlight .group-header-label {
     background: $surface-lighten-1;
 }
 
