@@ -26,6 +26,12 @@ uv tool install /path/to/gh-review-dashboard
 
 This makes the `ghrd` command available globally.
 
+To update after pulling new changes:
+
+```bash
+uv tool install /path/to/gh-review-dashboard --force --reinstall
+```
+
 ## Quick Start
 
 ```bash
