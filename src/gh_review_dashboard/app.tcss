@@ -57,6 +57,10 @@ GroupHeaderItem.first-group {
     margin-top: 0;
 }
 
+GroupHeaderItem.--highlight .group-header-label {
+    background: $surface-lighten-1;
+}
+
 .pr-row-new {
     text-style: bold;
     color: $accent;

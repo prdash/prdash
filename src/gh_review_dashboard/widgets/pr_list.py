@@ -200,6 +200,27 @@ class PRListWidget(Widget):
         elif isinstance(event.item, PRRow):
             webbrowser.open(event.item.pr.url)
 
+    def on_key(self, event) -> None:
+        """Handle left/right arrow keys for group header collapse/expand."""
+        if event.key not in ("left", "right"):
+            return
+        list_view = self.query_one("#pr-list-view", NavigableListView)
+        item = list_view.highlighted_child
+        if not isinstance(item, GroupHeaderItem):
+            return
+        if event.key == "left" and not item.collapsed:
+            item.collapsed = True
+            self._header_states[item.group_name] = True
+            self._rebuild_list()
+            event.prevent_default()
+            event.stop()
+        elif event.key == "right" and item.collapsed:
+            item.collapsed = False
+            self._header_states[item.group_name] = False
+            self._rebuild_list()
+            event.prevent_default()
+            event.stop()
+
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
         """Emit PRSelected when a PR row is highlighted."""
         if event.item is not None and isinstance(event.item, PRRow):

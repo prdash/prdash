@@ -659,6 +659,156 @@ async def test_authored_group_rows_no_approved_class():
         assert "pr-row-approved" not in label.classes
 
 
+# --- Arrow key collapse/expand tests (T29) ---
+
+
+@pytest.mark.asyncio
+async def test_right_arrow_expands_collapsed_group(sample_pr, sample_pr_minimal):
+    """Right arrow on a collapsed group header should expand it."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test Group",
+                group_type="test",
+                pull_requests=[sample_pr, sample_pr_minimal],
+            ),
+        ])
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        # Collapse via enter first
+        await pilot.press("enter")
+        await pilot.pause()
+        assert len(list(widget.query(PRRow))) == 0
+
+        # Expand via right arrow
+        await pilot.press("right")
+        await pilot.pause()
+        assert len(list(widget.query(PRRow))) == 2
+
+
+@pytest.mark.asyncio
+async def test_left_arrow_collapses_expanded_group(sample_pr, sample_pr_minimal):
+    """Left arrow on an expanded group header should collapse it."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test Group",
+                group_type="test",
+                pull_requests=[sample_pr, sample_pr_minimal],
+            ),
+        ])
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        # Initially expanded
+        assert len(list(widget.query(PRRow))) == 2
+
+        # Collapse via left arrow
+        await pilot.press("left")
+        await pilot.pause()
+        assert len(list(widget.query(PRRow))) == 0
+
+
+@pytest.mark.asyncio
+async def test_right_on_expanded_group_noop(sample_pr):
+    """Right arrow on already-expanded group should not change anything."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test Group",
+                group_type="test",
+                pull_requests=[sample_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        assert len(list(widget.query(PRRow))) == 1
+
+        await pilot.press("right")
+        await pilot.pause()
+        assert len(list(widget.query(PRRow))) == 1
+
+
+@pytest.mark.asyncio
+async def test_left_on_collapsed_group_noop(sample_pr):
+    """Left arrow on already-collapsed group should not change anything."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test Group",
+                group_type="test",
+                pull_requests=[sample_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        # Collapse first
+        await pilot.press("enter")
+        await pilot.pause()
+        assert len(list(widget.query(PRRow))) == 0
+
+        # Left on already-collapsed — no change
+        await pilot.press("left")
+        await pilot.pause()
+        assert len(list(widget.query(PRRow))) == 0
+
+
+@pytest.mark.asyncio
+async def test_left_right_on_pr_row_no_action(sample_pr):
+    """Left/right arrows on a PR row should not collapse/expand anything."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test Group",
+                group_type="test",
+                pull_requests=[sample_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        # Move to PR row
+        await pilot.press("j")
+        await pilot.pause()
+
+        # Left/right should not affect the group
+        await pilot.press("left")
+        await pilot.pause()
+        assert len(list(widget.query(PRRow))) == 1
+
+        await pilot.press("right")
+        await pilot.pause()
+        assert len(list(widget.query(PRRow))) == 1
+
+
 @pytest.mark.asyncio
 async def test_no_username_no_approved_class():
     """Without a username, no rows should get pr-row-approved class."""
