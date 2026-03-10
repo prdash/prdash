@@ -102,6 +102,7 @@ Depends on Phase 3 (T06).
 |---|---|---|---|
 | T25 | PR list readability (colored Rich markup status labels, multi-line rows, group separators, triangle arrows) | T06 | completed |
 | T26 | "Approved by me" visual differentiation (green background + sort-to-bottom for PRs user has approved) | T06 | completed |
+| T27 | Fix PR title wrap indentation (restructure PRRow layout so wrapped title lines maintain indent) | T25 | not started |
 
 ## Feature Coverage
 
