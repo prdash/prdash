@@ -103,6 +103,8 @@ Depends on Phase 3 (T06).
 | T25 | PR list readability (colored Rich markup status labels, multi-line rows, group separators, triangle arrows) | T06 | completed |
 | T26 | "Approved by me" visual differentiation (green background + sort-to-bottom for PRs user has approved) | T06 | completed |
 | T27 | Fix PR title wrap indentation (restructure PRRow layout so wrapped title lines maintain indent) | T25 | completed |
+| T28 | Group header focus highlight (subtle background tint when header row is focused) | T06 | not started |
+| T29 | Arrow key collapse/expand for group headers (left=collapse, right=expand) | T06, T08 | not started |
 
 ## Feature Coverage
 
