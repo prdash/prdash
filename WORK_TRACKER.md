@@ -101,7 +101,7 @@ Depends on Phase 3 (T06).
 | ID | Task | Dependencies | Status |
 |---|---|---|---|
 | T25 | PR list readability (colored Rich markup status labels, multi-line rows, group separators, triangle arrows) | T06 | completed |
-| T26 | "Approved by me" visual differentiation (green background + sort-to-bottom for PRs user has approved) | T06 | not started |
+| T26 | "Approved by me" visual differentiation (green background + sort-to-bottom for PRs user has approved) | T06 | completed |
 
 ## Feature Coverage
 

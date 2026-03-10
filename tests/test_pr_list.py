@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 
 from gh_review_dashboard.app import ReviewDashboardApp
-from gh_review_dashboard.models import QueryGroupResult
+from gh_review_dashboard.models import PullRequest, QueryGroupResult, Reviewer
 from gh_review_dashboard.widgets.pr_list import (
     EmptyGroupItem,
     GroupHeaderItem,
@@ -559,3 +559,118 @@ async def test_enter_on_empty_group_item_is_noop(sample_pr):
             await pilot.press("enter")
             await pilot.pause()
             mock_open.assert_not_called()
+
+
+# --- "Approved by me" tests (T26) ---
+
+
+def _make_pr_with_reviewers(pr_id: str, number: int, title: str, reviewers: list[Reviewer]) -> PullRequest:
+    from datetime import UTC, datetime, timedelta
+    return PullRequest(
+        id=pr_id,
+        number=number,
+        title=title,
+        author="alice",
+        url=f"https://github.com/org/repo/pull/{number}",
+        created_at=datetime.now(UTC) - timedelta(hours=1),
+        reviewers=reviewers,
+    )
+
+
+@pytest.mark.asyncio
+async def test_approved_prs_sort_to_bottom_in_reviewer_groups():
+    """PRs approved by the user should sort to the bottom of reviewer groups."""
+    approved_pr = _make_pr_with_reviewers("PR_A", 1, "Approved PR", [Reviewer(login="me", state="APPROVED")])
+    pending_pr = _make_pr_with_reviewers("PR_B", 2, "Pending PR", [Reviewer(login="me", state="PENDING")])
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data(
+            [QueryGroupResult(group_name="Review Requested", group_type="review_requested", pull_requests=[approved_pr, pending_pr])],
+            username="me",
+        )
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert len(rows) == 2
+        assert rows[0].pr.id == "PR_B"  # pending first
+        assert rows[1].pr.id == "PR_A"  # approved last
+
+
+@pytest.mark.asyncio
+async def test_authored_group_preserves_api_order():
+    """Authored group should not sort by approved status."""
+    approved_pr = _make_pr_with_reviewers("PR_A", 1, "Approved PR", [Reviewer(login="me", state="APPROVED")])
+    pending_pr = _make_pr_with_reviewers("PR_B", 2, "Pending PR", [Reviewer(login="me", state="PENDING")])
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data(
+            [QueryGroupResult(group_name="My PRs", group_type="authored", pull_requests=[approved_pr, pending_pr])],
+            username="me",
+        )
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert len(rows) == 2
+        assert rows[0].pr.id == "PR_A"  # original order preserved
+        assert rows[1].pr.id == "PR_B"
+
+
+@pytest.mark.asyncio
+async def test_approved_row_gets_css_class():
+    """Approved PR row in a reviewer group should get pr-row-approved class."""
+    approved_pr = _make_pr_with_reviewers("PR_A", 1, "Approved PR", [Reviewer(login="me", state="APPROVED")])
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data(
+            [QueryGroupResult(group_name="Review Requested", group_type="review_requested", pull_requests=[approved_pr])],
+            username="me",
+        )
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert rows[0].approved_by_me is True
+        from textual.widgets import Static
+        label = rows[0].query_one(Static)
+        assert "pr-row-approved" in label.classes
+
+
+@pytest.mark.asyncio
+async def test_authored_group_rows_no_approved_class():
+    """Authored group rows should never get pr-row-approved class."""
+    approved_pr = _make_pr_with_reviewers("PR_A", 1, "Approved PR", [Reviewer(login="me", state="APPROVED")])
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data(
+            [QueryGroupResult(group_name="My PRs", group_type="authored", pull_requests=[approved_pr])],
+            username="me",
+        )
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert rows[0].approved_by_me is False
+        from textual.widgets import Static
+        label = rows[0].query_one(Static)
+        assert "pr-row-approved" not in label.classes
+
+
+@pytest.mark.asyncio
+async def test_no_username_no_approved_class():
+    """Without a username, no rows should get pr-row-approved class."""
+    approved_pr = _make_pr_with_reviewers("PR_A", 1, "Approved PR", [Reviewer(login="me", state="APPROVED")])
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data(
+            [QueryGroupResult(group_name="Review Requested", group_type="review_requested", pull_requests=[approved_pr])],
+        )
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert rows[0].approved_by_me is False
+        from textual.widgets import Static
+        label = rows[0].query_one(Static)
+        assert "pr-row-approved" not in label.classes

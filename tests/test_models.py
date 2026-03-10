@@ -112,6 +112,31 @@ class TestPullRequestReviewStatus:
         assert pr.review_status == "pending"
 
 
+# --- is_approved_by ---
+
+
+class TestIsApprovedBy:
+    def test_approved_reviewer(self) -> None:
+        pr = _make_pr(reviewers=[Reviewer(login="bob", state="APPROVED")])
+        assert pr.is_approved_by("bob") is True
+
+    def test_pending_reviewer(self) -> None:
+        pr = _make_pr(reviewers=[Reviewer(login="bob", state="PENDING")])
+        assert pr.is_approved_by("bob") is False
+
+    def test_missing_reviewer(self) -> None:
+        pr = _make_pr(reviewers=[Reviewer(login="carol", state="APPROVED")])
+        assert pr.is_approved_by("bob") is False
+
+    def test_no_reviewers(self) -> None:
+        pr = _make_pr(reviewers=[])
+        assert pr.is_approved_by("bob") is False
+
+    def test_changes_requested_not_approved(self) -> None:
+        pr = _make_pr(reviewers=[Reviewer(login="bob", state="CHANGES_REQUESTED")])
+        assert pr.is_approved_by("bob") is False
+
+
 # --- Age Display ---
 
 

@@ -51,3 +51,7 @@ GroupHeaderItem.first-group {
     text-style: bold;
     color: $accent;
 }
+
+.pr-row-approved {
+    background: $success 15%;
+}

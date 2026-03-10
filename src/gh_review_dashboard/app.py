@@ -73,7 +73,7 @@ class ReviewDashboardApp(App):
             groups, errors = await self.github_client.fetch_all_groups(self.config)
             groups = deduplicate_groups(groups)
             pr_list = self.query_one(PRListWidget)
-            pr_list.update_data(groups, seen_ids=self._seen_pr_ids)
+            pr_list.update_data(groups, seen_ids=self._seen_pr_ids, username=self.config.username)
             new_ids = {pr.id for group in groups for pr in group.pull_requests}
             self._seen_pr_ids = new_ids
             for group_name, exc in errors:

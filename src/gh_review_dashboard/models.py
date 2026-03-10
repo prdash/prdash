@@ -71,6 +71,10 @@ class PullRequest(BaseModel, frozen=True):
             return "approved"
         return "pending"
 
+    def is_approved_by(self, username: str) -> bool:
+        """Check if a specific user has approved this PR."""
+        return any(r.login == username and r.state == "APPROVED" for r in self.reviewers)
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def age_display(self) -> str:

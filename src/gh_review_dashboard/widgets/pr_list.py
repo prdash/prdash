@@ -69,9 +69,10 @@ class EmptyGroupItem(ListItem):
 class PRRow(ListItem):
     """A single PR row in the list."""
 
-    def __init__(self, pr: PullRequest, is_new: bool = False, **kwargs: object) -> None:
+    def __init__(self, pr: PullRequest, is_new: bool = False, approved_by_me: bool = False, **kwargs: object) -> None:
         self.pr = pr
         self.is_new = is_new
+        self.approved_by_me = approved_by_me
         super().__init__(**kwargs)
 
     def compose(self):
@@ -81,6 +82,8 @@ class PRRow(ListItem):
         line1 = f"{new_marker}{escape(self.pr.title)}"
         line2 = f"  [dim]@{escape(self.pr.author)} · {self.pr.age_display}[/dim] · {ci_label} · {review_label}"
         classes = "pr-row-label pr-row-new" if self.is_new else "pr-row-label"
+        if self.approved_by_me:
+            classes += " pr-row-approved"
         yield Static(f"{line1}\n{line2}", classes=classes)
 
 
@@ -101,14 +104,16 @@ class PRListWidget(Widget):
         self._groups: list[QueryGroupResult] = []
         self._header_states: dict[str, bool] = {}
         self._seen_ids: set[str] | None = None
+        self._username: str | None = None
 
     def compose(self):
         yield NavigableListView(id="pr-list-view")
 
-    def update_data(self, groups: list[QueryGroupResult], seen_ids: set[str] | None = None) -> None:
+    def update_data(self, groups: list[QueryGroupResult], seen_ids: set[str] | None = None, username: str | None = None) -> None:
         """Rebuild the widget tree with new PR data."""
         self._groups = groups
         self._seen_ids = seen_ids
+        self._username = username
         # Initialize header states for new groups; preserve existing collapse state
         for group in groups:
             if group.group_name not in self._header_states:
@@ -148,9 +153,15 @@ class PRListWidget(Widget):
                     items.append(EmptyGroupItem())
                     item_ids.append(f"empty:{group.group_name}")
                 else:
-                    for pr in group.pull_requests:
+                    prs = group.pull_requests
+                    # Sort approved-by-me PRs to bottom in non-authored groups
+                    should_mark_approved = bool(self._username) and group.group_type != "authored"
+                    if should_mark_approved:
+                        prs = sorted(prs, key=lambda pr: pr.is_approved_by(self._username))  # type: ignore[arg-type]
+                    for pr in prs:
                         is_new = bool(self._seen_ids) and pr.id not in self._seen_ids
-                        items.append(PRRow(pr, is_new=is_new))
+                        approved_by_me = should_mark_approved and pr.is_approved_by(self._username)  # type: ignore[arg-type]
+                        items.append(PRRow(pr, is_new=is_new, approved_by_me=approved_by_me))
                         item_ids.append(f"pr:{pr.id}")
 
         for item in items:
