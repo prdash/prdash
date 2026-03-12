@@ -94,6 +94,7 @@ Depends on Phase 2 (T02, T04), Phase 3 (T06, T07), Phase 6 (T15, T17).
 |---|---|---|---|
 | T24 | CLI entry point (`ghrd` command via `[project.scripts]`, global install via `uv tool install`) | T01 | completed |
 | T31 | CLI distribution flags (`--version`, `--update` with install-method detection, end-user install docs) | T24 | not started |
+| T32 | Homebrew tap distribution (formula, release workflow, tap repo setup, docs) | T31 | not started |
 
 ## Phase 10: PR List Polish
 
