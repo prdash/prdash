@@ -11,7 +11,6 @@ from gh_review_dashboard.config import (
     AppConfig,
     QueryGroupConfig,
     QueryGroupType,
-    RepoConfig,
 )
 from gh_review_dashboard.screens.query_groups import QueryGroupsScreen
 from gh_review_dashboard.screens.settings import SettingsScreen
@@ -19,7 +18,7 @@ from gh_review_dashboard.screens.settings import SettingsScreen
 
 def _make_config(**overrides: object) -> AppConfig:
     defaults: dict = {
-        "repo": RepoConfig(org="test-org", name="test-repo"),
+        "repos": ["test-org/test-repo"],
         "username": "testuser",
         "team_slugs": ["team-a"],
         "poll_interval": 300,

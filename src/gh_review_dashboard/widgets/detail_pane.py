@@ -38,8 +38,9 @@ def _relative_time(dt: datetime) -> str:
 
 
 def _format_metadata(pr: PullRequest) -> str:
+    title_prefix = f"{pr.repo_slug} " if pr.repo_slug else ""
     return (
-        f"{pr.title} (#{pr.number})\n"
+        f"{title_prefix}{pr.title} (#{pr.number})\n"
         f"by {pr.author} | opened {pr.age_display} ago\n"
         f"{pr.url}"
     )

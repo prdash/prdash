@@ -40,6 +40,7 @@ class PullRequest(BaseModel, frozen=True):
     author: str
     url: str
     created_at: datetime
+    repo_slug: str = ""
     body: str | None = None
     labels: list[str] = Field(default_factory=list)
     reviewers: list[Reviewer] = Field(default_factory=list)
@@ -229,6 +230,8 @@ def parse_pr_node(node: dict) -> PullRequest:
     commit_nodes = (node.get("commits", {}) or {}).get("nodes", [])
     timeline_nodes = (node.get("timelineItems", {}) or {}).get("nodes", [])
 
+    repo_slug = (node.get("repository") or {}).get("nameWithOwner", "")
+
     return PullRequest(
         id=node["id"],
         number=node["number"],
@@ -236,6 +239,7 @@ def parse_pr_node(node: dict) -> PullRequest:
         author=author,
         url=node["url"],
         created_at=node["createdAt"],
+        repo_slug=repo_slug,
         body=node.get("body"),
         labels=labels,
         reviewers=_parse_reviewers(review_requests, reviews),

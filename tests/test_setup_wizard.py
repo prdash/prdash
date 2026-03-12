@@ -238,7 +238,7 @@ class TestPollIntervalScreen:
                 assert prefilled_state.completed is True
                 mock_save.assert_called_once()
                 saved_config = mock_save.call_args[0][0]
-                assert saved_config.repo.org == "test-org"
+                assert saved_config.repos == ["test-org/test-repo"]
                 assert saved_config.username == "testuser"
                 assert saved_config.poll_interval == 120
 

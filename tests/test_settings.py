@@ -6,14 +6,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from gh_review_dashboard.config import AppConfig, RepoConfig
+from gh_review_dashboard.config import AppConfig
 from gh_review_dashboard.screens.settings import SettingsScreen
 from gh_review_dashboard.app import ReviewDashboardApp
 
 
 def _make_config(**overrides) -> AppConfig:
     defaults = {
-        "repo": RepoConfig(org="test-org", name="test-repo"),
+        "repos": ["test-org/test-repo"],
         "username": "testuser",
         "team_slugs": ["team-a"],
         "poll_interval": 300,
@@ -35,8 +35,7 @@ class TestSettingsScreen:
 
             from textual.widgets import Input
 
-            assert screen.query_one("#org-input", Input).value == "test-org"
-            assert screen.query_one("#repo-input", Input).value == "test-repo"
+            assert screen.query_one("#repos-input", Input).value == "test-org/test-repo"
             assert screen.query_one("#username-input", Input).value == "testuser"
             assert screen.query_one("#teams-input", Input).value == "team-a"
             assert screen.query_one("#interval-input", Input).value == "300"
@@ -75,7 +74,7 @@ class TestSettingsScreen:
             await pilot.pause()
 
             error = screen.query_one("#error-msg", Static)
-            assert "required" in str(error.render()).lower()
+            assert "username" in str(error.render()).lower()
 
     @pytest.mark.asyncio
     async def test_save_validates_interval(self) -> None:

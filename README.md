@@ -46,7 +46,7 @@ uv run ghrd
 
 On first run, a **setup wizard** walks you through configuration:
 
-1. **Repository** — org and repo name (auto-detected from git remote if available)
+1. **Repository** — org and repo name (auto-detected from git remote if available), or skip to monitor all repos
 2. **Username** — your GitHub username (auto-detected from your auth token)
 3. **Teams** — team slugs for team review requests (auto-detected from GitHub API)
 4. **Confirm** — review and save
@@ -61,13 +61,10 @@ Config file location: `~/.config/gh-review-dashboard/config.toml`
 
 ```toml
 username = "octocat"
+repos = ["my-org/my-repo"]  # empty list = all repos
 team_slugs = ["frontend", "platform"]
 poll_interval = 300
 timeout = 30.0
-
-[repo]
-org = "my-org"
-name = "my-repo"
 
 [[query_groups]]
 type = "direct_reviewer"
@@ -100,9 +97,8 @@ enabled = false
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `repo.org` | string | *(required)* | GitHub organization or owner |
-| `repo.name` | string | *(required)* | Repository name |
 | `username` | string | *(required)* | Your GitHub username |
+| `repos` | list[str] | `[]` | Repo filters as `"org/name"` — empty = all repos |
 | `team_slugs` | list[str] | `[]` | Team slugs for team review queries |
 | `poll_interval` | int | `300` | Auto-refresh interval in seconds (min 30) |
 | `timeout` | float | `30.0` | HTTP request timeout in seconds (min 1.0) |
@@ -166,7 +162,7 @@ You can customize query groups by:
 
 Press `S` to open the settings screen where you can edit:
 
-- Repository org and name
+- Repos (comma-separated `org/name` slugs, empty = all repos)
 - Username
 - Team slugs
 - Poll interval

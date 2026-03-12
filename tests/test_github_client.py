@@ -10,7 +10,6 @@ from gh_review_dashboard.config import (
     AppConfig,
     QueryGroupConfig,
     QueryGroupType,
-    RepoConfig,
 )
 from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkError
 from gh_review_dashboard.github.client import GitHubClient, create_http_client
@@ -22,7 +21,7 @@ from gh_review_dashboard.github.queries import build_search_query
 
 def _make_config(**kwargs) -> AppConfig:
     defaults = {
-        "repo": RepoConfig(org="myorg", name="myrepo"),
+        "repos": ["myorg/myrepo"],
         "username": "testuser",
         "team_slugs": ["team-a", "team-b"],
     }
@@ -109,6 +108,42 @@ class TestBuildSearchQuery:
         group = QueryGroupConfig(type=QueryGroupType.LABEL, name="Labels", labels=[])
         queries = build_search_query(config, group)
         assert queries == []
+
+    # --- Cross-repo tests ---
+
+    def test_no_repos_no_repo_prefix(self) -> None:
+        config = _make_config(repos=[])
+        group = QueryGroupConfig(type=QueryGroupType.DIRECT_REVIEWER, name="Direct")
+        queries = build_search_query(config, group)
+        assert len(queries) == 1
+        assert "repo:" not in queries[0]
+        assert "is:pr is:open review-requested:testuser" in queries[0]
+
+    def test_no_repos_team_reviewer_returns_empty(self) -> None:
+        config = _make_config(repos=[])
+        group = QueryGroupConfig(type=QueryGroupType.TEAM_REVIEWER, name="Team")
+        queries = build_search_query(config, group)
+        assert queries == []
+
+    def test_multiple_repos_one_query_per_repo(self) -> None:
+        config = _make_config(repos=["org/repo1", "org/repo2"])
+        group = QueryGroupConfig(type=QueryGroupType.DIRECT_REVIEWER, name="Direct")
+        queries = build_search_query(config, group)
+        assert len(queries) == 2
+        assert "repo:org/repo1" in queries[0]
+        assert "repo:org/repo2" in queries[1]
+
+    def test_multiple_repos_team_reviewer_cross_product(self) -> None:
+        config = _make_config(repos=["org/repo1", "org/repo2"], team_slugs=["team-a", "team-b"])
+        group = QueryGroupConfig(type=QueryGroupType.TEAM_REVIEWER, name="Team")
+        queries = build_search_query(config, group)
+        assert len(queries) == 4  # 2 repos × 2 slugs
+
+    def test_multiple_repos_label_cross_product(self) -> None:
+        config = _make_config(repos=["org/repo1", "org/repo2"])
+        group = QueryGroupConfig(type=QueryGroupType.LABEL, name="Labels", labels=["bug", "urgent"])
+        queries = build_search_query(config, group)
+        assert len(queries) == 4  # 2 repos × 2 labels
 
 
 # --- TestExecuteQuery ---

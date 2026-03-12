@@ -8,7 +8,7 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
-from gh_review_dashboard.config import AppConfig, QueryGroupConfig, RepoConfig, save_config
+from gh_review_dashboard.config import AppConfig, QueryGroupConfig, save_config
 from gh_review_dashboard.screens.query_groups import QueryGroupsScreen
 
 
@@ -40,17 +40,10 @@ class SettingsScreen(Screen[AppConfig | None]):
             yield Static("Settings", id="settings-title")
             yield Static("")
 
-            yield Label("Organization:", classes="settings-label")
+            yield Label("Repos (comma-separated, empty = all):", classes="settings-label")
             yield Input(
-                value=self._config.repo.org,
-                id="org-input",
-                classes="settings-field",
-            )
-
-            yield Label("Repository name:", classes="settings-label")
-            yield Input(
-                value=self._config.repo.name,
-                id="repo-input",
+                value=", ".join(self._config.repos),
+                id="repos-input",
                 classes="settings-field",
             )
 
@@ -105,15 +98,14 @@ class SettingsScreen(Screen[AppConfig | None]):
         self.dismiss(None)
 
     def _save(self) -> None:
-        org = self.query_one("#org-input", Input).value.strip()
-        repo_name = self.query_one("#repo-input", Input).value.strip()
+        repos_text = self.query_one("#repos-input", Input).value.strip()
         username = self.query_one("#username-input", Input).value.strip()
         teams_text = self.query_one("#teams-input", Input).value.strip()
         interval_text = self.query_one("#interval-input", Input).value.strip()
 
-        if not org or not repo_name or not username:
+        if not username:
             self.query_one("#error-msg", Static).update(
-                "[bold red]Organization, repository, and username are required.[/]"
+                "[bold red]Username is required.[/]"
             )
             return
 
@@ -131,15 +123,22 @@ class SettingsScreen(Screen[AppConfig | None]):
             )
             return
 
+        repos = [s.strip() for s in repos_text.split(",") if s.strip()]
         team_slugs = [s.strip() for s in teams_text.split(",") if s.strip()]
 
-        new_config = AppConfig(
-            repo=RepoConfig(org=org, name=repo_name),
-            username=username,
-            team_slugs=team_slugs,
-            poll_interval=interval,
-            query_groups=list(self._query_groups),
-        )
+        try:
+            new_config = AppConfig(
+                repos=repos,
+                username=username,
+                team_slugs=team_slugs,
+                poll_interval=interval,
+                query_groups=list(self._query_groups),
+            )
+        except Exception as e:
+            self.query_one("#error-msg", Static).update(
+                f"[bold red]{e}[/]"
+            )
+            return
 
         save_config(new_config)
         self.dismiss(new_config)

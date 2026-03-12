@@ -79,6 +79,12 @@ class GitHubClient:
     ) -> QueryGroupResult:
         """Fetch PRs for a single query group, merging results from multiple queries."""
         search_queries = build_search_query(config, group)
+        if not search_queries:
+            return QueryGroupResult(
+                group_name=group.name,
+                group_type=group.type.value,
+                pull_requests=[],
+            )
         all_prs: list[PullRequest] = []
         seen_ids: set[str] = set()
 

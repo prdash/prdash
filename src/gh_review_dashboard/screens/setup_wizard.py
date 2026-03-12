@@ -14,7 +14,6 @@ from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Stat
 from gh_review_dashboard.config import (
     DEFAULT_QUERY_GROUPS,
     AppConfig,
-    RepoConfig,
     save_config,
 )
 from gh_review_dashboard.detect import (
@@ -85,12 +84,18 @@ class RepoScreen(WizardStep):
             yield Static("", id="error-msg")
             with Horizontal(classes="wizard-buttons"):
                 yield Button("Next", variant="primary", id="next-btn")
+                yield Button("Skip (all repos)", id="skip-btn")
                 yield Button("Cancel", id="cancel-btn")
         yield Footer()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "cancel-btn":
             self.app.exit()
+            return
+        if event.button.id == "skip-btn":
+            self.state.org = ""
+            self.state.repo_name = ""
+            self.app.push_screen(UsernameScreen(self.state, self.token))
             return
         if event.button.id == "next-btn":
             self._advance()
@@ -289,8 +294,13 @@ class PollIntervalScreen(WizardStep):
 
         self.state.poll_interval = interval
 
+        repos = (
+            [f"{self.state.org}/{self.state.repo_name}"]
+            if self.state.org and self.state.repo_name
+            else []
+        )
         config = AppConfig(
-            repo=RepoConfig(org=self.state.org, name=self.state.repo_name),
+            repos=repos,
             username=self.state.username,
             team_slugs=self.state.team_slugs,
             poll_interval=self.state.poll_interval,

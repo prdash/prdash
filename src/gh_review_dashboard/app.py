@@ -42,9 +42,19 @@ class ReviewDashboardApp(App):
             yield DetailPaneWidget(id="detail-pane")
         yield Footer()
 
+    def _update_subtitle(self) -> None:
+        """Update sub_title based on current config repos."""
+        if self.config is None:
+            return
+        if self.config.repos:
+            self.sub_title = ", ".join(self.config.repos)
+        else:
+            self.sub_title = "All repositories"
+
     def on_mount(self) -> None:
         """Set initial focus and start refresh cycle."""
         self.query_one("#pr-list-view").focus()
+        self._update_subtitle()
         if self.github_client is not None and self.config is not None:
             self.refresh_data()
             self._refresh_timer = self.set_interval(
@@ -95,6 +105,7 @@ class ReviewDashboardApp(App):
         if new_config is None:
             return
         self.config = new_config
+        self._update_subtitle()
         if self._refresh_timer is not None:
             self._refresh_timer.stop()
         self._refresh_timer = self.set_interval(

@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from gh_review_dashboard.app import ReviewDashboardApp
-from gh_review_dashboard.config import AppConfig, QueryGroupConfig, QueryGroupType, RepoConfig
+from gh_review_dashboard.config import AppConfig, QueryGroupConfig, QueryGroupType
 from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkError
 from gh_review_dashboard.github.client import GitHubClient
 from gh_review_dashboard.models import PullRequest, QueryGroupResult
@@ -12,7 +12,7 @@ from gh_review_dashboard.widgets import DetailPaneWidget, PRListWidget
 
 def _make_config() -> AppConfig:
     return AppConfig(
-        repo=RepoConfig(org="test-org", name="test-repo"),
+        repos=["test-org/test-repo"],
         username="testuser",
         poll_interval=300,
     )

@@ -37,7 +37,7 @@ class TestMain:
     def test_wizard_skipped_when_config_exists(self, tmp_path) -> None:
         config_file = tmp_path / "config.toml"
         config_file.write_text(
-            'username = "user"\n[repo]\norg = "org"\nname = "repo"\n'
+            'username = "user"\nrepos = ["org/repo"]\n'
         )
 
         mock_app = MagicMock()
@@ -58,7 +58,7 @@ class TestMain:
         config_file = tmp_path / "config.toml"
         # Simulate wizard creating the file
         config_file.write_text(
-            'username = "user"\n[repo]\norg = "org"\nname = "repo"\n'
+            'username = "user"\nrepos = ["org/repo"]\n'
         )
 
         mock_wizard = MagicMock()

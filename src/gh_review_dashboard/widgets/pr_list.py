@@ -80,7 +80,8 @@ class PRRow(ListItem):
         ci_label = _CI_LABELS.get(self.pr.ci_status, "[dim]CI:--[/dim]")
         review_label = _REVIEW_LABELS.get(self.pr.review_status, "[dim]Rev:--[/dim]")
         marker_text = "[bold]●[/bold]" if self.is_new else " "
-        title_line = escape(self.pr.title)
+        repo_prefix = f"[dim]{escape(self.pr.repo_slug)}[/dim]  " if self.pr.repo_slug else ""
+        title_line = f"{repo_prefix}{escape(self.pr.title)}"
         meta_line = f"[dim]@{escape(self.pr.author)} · {self.pr.age_display}[/dim] · {ci_label} · {review_label}"
         classes = "pr-row-label pr-row-new" if self.is_new else "pr-row-label"
         if self.approved_by_me:

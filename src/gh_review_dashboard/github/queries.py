@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gh_review_dashboard.config import AppConfig, QueryGroupConfig, QueryGroupType
+from gh_review_dashboard.config import AppConfig, QueryGroupConfig, QueryGroupType, get_org_from_repos
 
 DEFAULT_PAGE_SIZE = 50
 
@@ -16,6 +16,7 @@ query($searchQuery: String!, $first: Int!, $after: String) {
         number
         title
         url
+        repository { nameWithOwner }
         createdAt
         body
         author { login }
@@ -66,21 +67,28 @@ def build_search_query(config: AppConfig, group: QueryGroupConfig) -> list[str]:
     """Build GitHub search query strings for a query group.
 
     Returns a list because team_reviewer and label types produce one query
-    per team slug or label respectively.
+    per team slug or label respectively. Multiple repos also multiply queries.
     """
-    prefix = f"repo:{config.repo.org}/{config.repo.name} is:pr is:open"
+    if config.repos:
+        prefixes = [f"repo:{r} is:pr is:open" for r in config.repos]
+    else:
+        prefixes = ["is:pr is:open"]
 
     match group.type:
         case QueryGroupType.DIRECT_REVIEWER:
-            return [f"{prefix} review-requested:{config.username}"]
+            return [f"{p} review-requested:{config.username}" for p in prefixes]
         case QueryGroupType.TEAM_REVIEWER:
-            return [
-                f"{prefix} team-review-requested:{config.repo.org}/{slug}"
-                for slug in config.team_slugs
-            ]
+            if not config.repos:
+                return []  # org unknown, can't form team-review-requested
+            queries = []
+            for r in config.repos:
+                org = r.split("/")[0]
+                for slug in config.team_slugs:
+                    queries.append(f"repo:{r} is:pr is:open team-review-requested:{org}/{slug}")
+            return queries
         case QueryGroupType.MENTIONED:
-            return [f"{prefix} involves:{config.username}"]
+            return [f"{p} involves:{config.username}" for p in prefixes]
         case QueryGroupType.AUTHORED:
-            return [f"{prefix} author:{config.username}"]
+            return [f"{p} author:{config.username}" for p in prefixes]
         case QueryGroupType.LABEL:
-            return [f'{prefix} label:"{label}"' for label in group.labels]
+            return [f'{p} label:"{label}"' for p in prefixes for label in group.labels]

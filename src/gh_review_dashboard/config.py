@@ -1,17 +1,20 @@
 """TOML-based configuration loading and Pydantic models."""
 
 import os
+import re
 import tempfile
 import tomllib
 from enum import Enum
 from pathlib import Path
 
-from pydantic import BaseModel, Field, ValidationError, model_validator
+from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
 from gh_review_dashboard.exceptions import ConfigError
 
 CONFIG_DIR: Path = Path.home() / ".config" / "gh-review-dashboard"
 CONFIG_FILE: Path = CONFIG_DIR / "config.toml"
+
+_REPO_SLUG_RE = re.compile(r"^[^/]+/[^/]+$")
 
 
 class QueryGroupType(str, Enum):
@@ -39,13 +42,6 @@ class QueryGroupConfig(BaseModel):
         return self
 
 
-class RepoConfig(BaseModel):
-    """GitHub repository coordinates."""
-
-    org: str
-    name: str
-
-
 DEFAULT_QUERY_GROUPS: list[QueryGroupConfig] = [
     QueryGroupConfig(type=QueryGroupType.AUTHORED, name="My PRs"),
     QueryGroupConfig(type=QueryGroupType.MENTIONED, name="Mentioned/Involved"),
@@ -57,10 +53,17 @@ DEFAULT_QUERY_GROUPS: list[QueryGroupConfig] = [
 ]
 
 
+def get_org_from_repos(repos: list[str]) -> str | None:
+    """Return the org from the first repo slug, or None if repos is empty."""
+    if not repos:
+        return None
+    return repos[0].split("/")[0]
+
+
 class AppConfig(BaseModel):
     """Top-level application configuration."""
 
-    repo: RepoConfig
+    repos: list[str] = Field(default_factory=list)
     username: str
     team_slugs: list[str] = Field(default_factory=list)
     poll_interval: int = Field(default=300, ge=30)
@@ -68,6 +71,36 @@ class AppConfig(BaseModel):
     query_groups: list[QueryGroupConfig] = Field(
         default_factory=lambda: list(DEFAULT_QUERY_GROUPS)
     )
+
+    @model_validator(mode="before")
+    @classmethod
+    def migrate_repo_to_repos(cls, data: dict) -> dict:
+        """Migrate old-style `repo` config to new `repos` list."""
+        if not isinstance(data, dict):
+            return data
+        if "repo" in data:
+            repo = data.pop("repo")
+            if isinstance(repo, dict):
+                org = repo.get("org", "")
+                name = repo.get("name", "")
+            elif hasattr(repo, "org"):
+                org = repo.org
+                name = repo.name
+            else:
+                return data
+            if org and name:
+                data.setdefault("repos", [f"{org}/{name}"])
+        return data
+
+    @field_validator("repos")
+    @classmethod
+    def validate_repos(cls, v: list[str]) -> list[str]:
+        for entry in v:
+            if not _REPO_SLUG_RE.match(entry):
+                raise ValueError(
+                    f"Invalid repo slug '{entry}': must be 'org/name'"
+                )
+        return v
 
 
 def load_config(path: Path | None = None) -> AppConfig:
@@ -88,10 +121,8 @@ def load_config(path: Path | None = None) -> AppConfig:
         raise ConfigError(
             f"Config file not found: {config_path}\n"
             f"Create it with at least:\n\n"
-            f"  [repo]\n"
-            f'  org = "your-org"\n'
-            f'  name = "your-repo"\n\n'
             f'  username = "your-github-username"\n'
+            f'  repos = ["your-org/your-repo"]  # optional, empty = all repos\n'
         )
 
     with open(config_path, "rb") as f:
@@ -116,10 +147,11 @@ def _serialize_config_toml(config: AppConfig) -> str:
     lines.append(f"poll_interval = {config.poll_interval}")
     lines.append(f"timeout = {config.timeout}")
 
-    lines.append("")
-    lines.append("[repo]")
-    lines.append(f'org = "{config.repo.org}"')
-    lines.append(f'name = "{config.repo.name}"')
+    if config.repos:
+        repos = ", ".join(f'"{r}"' for r in config.repos)
+        lines.append(f"repos = [{repos}]")
+    else:
+        lines.append("repos = []")
 
     for group in config.query_groups:
         lines.append("")

@@ -10,7 +10,7 @@ from gh_review_dashboard.config import (
     AppConfig,
     QueryGroupConfig,
     QueryGroupType,
-    RepoConfig,
+    get_org_from_repos,
     load_config,
     save_config,
 )
@@ -32,10 +32,7 @@ class TestLoadConfigHappyPath:
             username = "testuser"
             team_slugs = ["team-a", "team-b"]
             poll_interval = 120
-
-            [repo]
-            org = "my-org"
-            name = "my-repo"
+            repos = ["my-org/my-repo"]
 
             [[query_groups]]
             type = "direct_reviewer"
@@ -52,8 +49,7 @@ class TestLoadConfigHappyPath:
 
         config = load_config(path)
 
-        assert config.repo.org == "my-org"
-        assert config.repo.name == "my-repo"
+        assert config.repos == ["my-org/my-repo"]
         assert config.username == "testuser"
         assert config.team_slugs == ["team-a", "team-b"]
         assert config.poll_interval == 120
@@ -66,21 +62,46 @@ class TestLoadConfigHappyPath:
             tmp_path,
             """\
             username = "user"
-
-            [repo]
-            org = "org"
-            name = "repo"
             """,
         )
 
         config = load_config(path)
 
+        assert config.repos == []
         assert config.poll_interval == 300
         assert config.team_slugs == []
         assert len(config.query_groups) == 5
         group_types = [g.type for g in config.query_groups]
         assert QueryGroupType.DIRECT_REVIEWER in group_types
         assert QueryGroupType.LABEL in group_types
+
+    def test_old_repo_config_migrates(self, tmp_path: Path) -> None:
+        """Old-style [repo] config should be migrated to repos list."""
+        path = _write_toml(
+            tmp_path,
+            """\
+            username = "user"
+
+            [repo]
+            org = "my-org"
+            name = "my-repo"
+            """,
+        )
+
+        config = load_config(path)
+        assert config.repos == ["my-org/my-repo"]
+
+    def test_empty_repos_means_all(self, tmp_path: Path) -> None:
+        path = _write_toml(
+            tmp_path,
+            """\
+            username = "user"
+            repos = []
+            """,
+        )
+
+        config = load_config(path)
+        assert config.repos == []
 
 
 class TestLoadConfigErrors:
@@ -90,25 +111,12 @@ class TestLoadConfigErrors:
         with pytest.raises(ConfigError, match="Config file not found"):
             load_config(nonexistent)
 
-    def test_missing_required_field_repo(self, tmp_path: Path) -> None:
-        path = _write_toml(
-            tmp_path,
-            """\
-            username = "user"
-            """,
-        )
-
-        with pytest.raises(ConfigError, match="repo"):
-            load_config(path)
-
     def test_missing_required_field_username(self, tmp_path: Path) -> None:
         path = _write_toml(
             tmp_path,
             """\
-            [repo]
-            org = "org"
-            name = "repo"
-            """,  # no username at all
+            repos = ["org/repo"]
+            """,
         )
 
         with pytest.raises(ConfigError, match="username"):
@@ -119,10 +127,6 @@ class TestLoadConfigErrors:
             tmp_path,
             """\
             username = "user"
-
-            [repo]
-            org = "org"
-            name = "repo"
 
             [[query_groups]]
             type = "nonexistent"
@@ -139,10 +143,6 @@ class TestLoadConfigErrors:
             """\
             username = "user"
             poll_interval = 10
-
-            [repo]
-            org = "org"
-            name = "repo"
             """,
         )
 
@@ -150,17 +150,50 @@ class TestLoadConfigErrors:
             load_config(path)
 
 
+class TestReposMigration:
+    def test_backward_migration_dict(self) -> None:
+        config = AppConfig(**{"repo": {"org": "x", "name": "y"}, "username": "u"})
+        assert config.repos == ["x/y"]
+
+    def test_repos_validation_no_slash(self) -> None:
+        with pytest.raises(Exception, match="org/name"):
+            AppConfig(repos=["noslash"], username="u")
+
+    def test_repos_validation_empty_string(self) -> None:
+        with pytest.raises(Exception):
+            AppConfig(repos=[""], username="u")
+
+    def test_repos_validation_valid(self) -> None:
+        config = AppConfig(repos=["a/b"], username="u")
+        assert config.repos == ["a/b"]
+
+    def test_empty_repos_valid(self) -> None:
+        config = AppConfig(repos=[], username="u")
+        assert config.repos == []
+
+
+class TestGetOrgFromRepos:
+    def test_empty(self) -> None:
+        assert get_org_from_repos([]) is None
+
+    def test_single(self) -> None:
+        assert get_org_from_repos(["myorg/myrepo"]) == "myorg"
+
+    def test_multiple(self) -> None:
+        assert get_org_from_repos(["org1/repo1", "org2/repo2"]) == "org1"
+
+
 class TestTimeoutConfig:
     def test_default_timeout(self) -> None:
         config = AppConfig(
-            repo=RepoConfig(org="org", name="repo"),
+            repos=["org/repo"],
             username="user",
         )
         assert config.timeout == 30.0
 
     def test_custom_timeout(self) -> None:
         config = AppConfig(
-            repo=RepoConfig(org="org", name="repo"),
+            repos=["org/repo"],
             username="user",
             timeout=60.0,
         )
@@ -169,7 +202,7 @@ class TestTimeoutConfig:
     def test_timeout_minimum_validation(self) -> None:
         with pytest.raises(Exception):  # Pydantic ValidationError
             AppConfig(
-                repo=RepoConfig(org="org", name="repo"),
+                repos=["org/repo"],
                 username="user",
                 timeout=0.5,
             )
@@ -180,10 +213,7 @@ class TestTimeoutConfig:
             """\
             username = "user"
             timeout = 45.0
-
-            [repo]
-            org = "org"
-            name = "repo"
+            repos = ["org/repo"]
             """,
         )
         config = load_config(path)
@@ -191,7 +221,7 @@ class TestTimeoutConfig:
 
     def test_timeout_round_trip(self, tmp_path: Path) -> None:
         config = AppConfig(
-            repo=RepoConfig(org="org", name="repo"),
+            repos=["org/repo"],
             username="user",
             timeout=15.0,
         )
@@ -229,7 +259,7 @@ class TestQueryGroupConfig:
 class TestSaveConfig:
     def _make_config(self, **overrides: object) -> AppConfig:
         defaults: dict = {
-            "repo": RepoConfig(org="test-org", name="test-repo"),
+            "repos": ["test-org/test-repo"],
             "username": "testuser",
             "team_slugs": ["team-a", "team-b"],
             "poll_interval": 120,
@@ -243,8 +273,7 @@ class TestSaveConfig:
         save_config(config, path)
         loaded = load_config(path)
 
-        assert loaded.repo.org == config.repo.org
-        assert loaded.repo.name == config.repo.name
+        assert loaded.repos == config.repos
         assert loaded.username == config.username
         assert loaded.team_slugs == config.team_slugs
         assert loaded.poll_interval == config.poll_interval
@@ -263,7 +292,16 @@ class TestSaveConfig:
         with open(path, "rb") as f:
             data = tomllib.load(f)
         assert data["username"] == "testuser"
-        assert data["repo"]["org"] == "test-org"
+        assert data["repos"] == ["test-org/test-repo"]
+
+    def test_serialization_uses_repos_not_repo(self, tmp_path: Path) -> None:
+        config = self._make_config()
+        path = tmp_path / "config.toml"
+        save_config(config, path)
+
+        content = path.read_text()
+        assert "repos = [" in content
+        assert "[repo]" not in content
 
     def test_round_trip_with_label_groups(self, tmp_path: Path) -> None:
         groups = [
@@ -289,6 +327,20 @@ class TestSaveConfig:
         loaded = load_config(path)
         assert loaded.team_slugs == []
 
+    def test_round_trip_empty_repos(self, tmp_path: Path) -> None:
+        config = self._make_config(repos=[])
+        path = tmp_path / "config.toml"
+        save_config(config, path)
+        loaded = load_config(path)
+        assert loaded.repos == []
+
+    def test_round_trip_multiple_repos(self, tmp_path: Path) -> None:
+        config = self._make_config(repos=["org/repo1", "org/repo2"])
+        path = tmp_path / "config.toml"
+        save_config(config, path)
+        loaded = load_config(path)
+        assert loaded.repos == ["org/repo1", "org/repo2"]
+
 
 class TestCustomQueryGroups:
     def test_custom_groups_override_defaults(self, tmp_path: Path) -> None:
@@ -296,10 +348,6 @@ class TestCustomQueryGroups:
             tmp_path,
             """\
             username = "user"
-
-            [repo]
-            org = "org"
-            name = "repo"
 
             [[query_groups]]
             type = "authored"

@@ -22,6 +22,7 @@ def sample_pr() -> PullRequest:
         author="alice",
         url="https://github.com/org/repo/pull/42",
         created_at=datetime.now(UTC) - timedelta(days=2),
+        repo_slug="test-org/test-repo",
         body="This PR fixes the auth token refresh logic.",
         labels=["bug", "auth"],
         reviewers=[
@@ -63,6 +64,7 @@ def sample_pr_minimal() -> PullRequest:
         author="bob",
         url="https://github.com/org/repo/pull/99",
         created_at=datetime.now(UTC) - timedelta(hours=5),
+        repo_slug="test-org/test-repo",
     )
 
 

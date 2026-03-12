@@ -175,6 +175,7 @@ class TestParsePrNode:
             "createdAt": "2025-01-15T10:00:00Z",
             "body": "PR body text",
             "author": {"login": "alice"},
+            "repository": {"nameWithOwner": "org/repo"},
             "labels": {"nodes": [{"name": "bug"}, {"name": "urgent"}]},
             "reviewRequests": {
                 "nodes": [{"requestedReviewer": {"login": "bob"}}]
@@ -221,12 +222,23 @@ class TestParsePrNode:
         assert pr.number == 42
         assert pr.title == "Add feature"
         assert pr.author == "alice"
+        assert pr.repo_slug == "org/repo"
         assert pr.labels == ["bug", "urgent"]
         assert len(pr.reviewers) == 2  # bob (PENDING) + carol (APPROVED)
         assert len(pr.checks) == 1
         assert pr.checks[0].name == "ci/build"
         assert len(pr.timeline_events) == 1
         assert pr.timeline_events[0].type == "IssueComment"
+
+    def test_repo_slug_missing_repository(self) -> None:
+        node = self._sample_node()
+        del node["repository"]
+        pr = parse_pr_node(node)
+        assert pr.repo_slug == ""
+
+    def test_repo_slug_null_repository(self) -> None:
+        pr = parse_pr_node(self._sample_node(repository=None))
+        assert pr.repo_slug == ""
 
     def test_null_author_becomes_ghost(self) -> None:
         pr = parse_pr_node(self._sample_node(author=None))
