@@ -106,6 +106,14 @@ Depends on Phase 3 (T06).
 | T28 | Group header focus highlight (subtle background tint when header row is focused) | T06 | completed |
 | T29 | Arrow key collapse/expand for group headers (left=collapse, right=expand) | T06, T08 | completed |
 
+## Phase 11: Branch Detection
+
+Depends on Phase 2 (T04), Phase 3 (T06, T07).
+
+| ID | Task | Dependencies | Status |
+|---|---|---|---|
+| T30 | "Ready to PR" branch detection (detect user's recent branches without open PRs, display as query group, Enter opens GitHub new-PR page) | T04, T06, T07 | not started |
+
 ## Feature Coverage
 
 All features from PRODUCT_GUIDELINES.md are covered:
