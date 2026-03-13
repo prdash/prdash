@@ -8,6 +8,7 @@ import pytest
 
 from gh_review_dashboard.__main__ import main
 from gh_review_dashboard.exceptions import AuthError
+from gh_review_dashboard.updater import get_version
 
 
 class TestMain:
@@ -77,3 +78,58 @@ class TestMain:
             mock_load.return_value = MagicMock()
             main()
             mock_app.run.assert_called_once()
+
+
+class TestVersionFlag:
+    def test_version_prints_and_exits(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setattr("sys.argv", ["ghrd", "--version"])
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 0
+        captured = capsys.readouterr()
+        assert get_version() in captured.out
+
+    def test_version_short_alias(
+        self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        monkeypatch.setattr("sys.argv", ["ghrd", "-V"])
+        with pytest.raises(SystemExit) as exc_info:
+            main()
+        assert exc_info.value.code == 0
+        captured = capsys.readouterr()
+        assert get_version() in captured.out
+
+    def test_version_requires_no_auth(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("sys.argv", ["ghrd", "--version"])
+        with (
+            patch(
+                "gh_review_dashboard.__main__.get_github_token",
+                side_effect=AssertionError("auth should not be called"),
+            ),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            main()
+        assert exc_info.value.code == 0
+
+
+class TestUpdateFlag:
+    def test_update_delegates_to_run_upgrade(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr("sys.argv", ["ghrd", "--update"])
+        with patch("gh_review_dashboard.__main__.run_upgrade") as mock_upgrade:
+            main()
+        mock_upgrade.assert_called_once()
+
+    def test_update_requires_no_auth(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("sys.argv", ["ghrd", "--update"])
+        with (
+            patch(
+                "gh_review_dashboard.__main__.get_github_token",
+                side_effect=AssertionError("auth should not be called"),
+            ),
+            patch("gh_review_dashboard.__main__.run_upgrade"),
+        ):
+            main()

@@ -21,16 +21,25 @@ uv sync
 ### Global install
 
 ```bash
-uv tool install /path/to/gh-review-dashboard
+# Using uv (recommended)
+uv tool install gh-review-dashboard
+
+# Using pipx
+pipx install gh-review-dashboard
+
+# Using pip
+pip install gh-review-dashboard
 ```
 
 This makes the `ghrd` command available globally.
 
-To update after pulling new changes:
+To update to the latest version:
 
 ```bash
-uv tool install /path/to/gh-review-dashboard --force --reinstall
+ghrd --update
 ```
+
+This auto-detects your install method (uv/pipx/pip) and runs the appropriate upgrade command.
 
 ## Quick Start
 
@@ -112,6 +121,13 @@ enabled = false
 | `name` | string | *(required)* | Display name in the PR list |
 | `labels` | list[str] | `[]` | Label filters (only for `label` type) |
 | `enabled` | bool | `true` | Whether this group is active |
+
+## CLI Flags
+
+| Flag | Description |
+|---|---|
+| `-V`, `--version` | Print version and exit |
+| `--update` | Update to the latest version |
 
 ## Usage
 

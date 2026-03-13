@@ -13,6 +13,12 @@ from gh_review_dashboard.models import (
 )
 
 
+@pytest.fixture(autouse=True)
+def _clean_sys_argv(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prevent argparse from seeing pytest's arguments."""
+    monkeypatch.setattr("sys.argv", ["ghrd"])
+
+
 @pytest.fixture
 def sample_pr() -> PullRequest:
     return PullRequest(
