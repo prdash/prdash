@@ -5,13 +5,16 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 
 from gh_review_dashboard.models import (
+    CandidateBranch,
     CheckRun,
     PullRequest,
     QueryGroupResult,
     Reviewer,
     TimelineEvent,
+    _format_age,
     deduplicate_groups,
     parse_pr_node,
+    parse_refs_results,
     parse_search_results,
 )
 
@@ -445,3 +448,146 @@ class TestDeduplicateGroups:
         groups = [original, self._make_group("B", ["PR_1"])]
         deduplicate_groups(groups)
         assert len(original.pull_requests) == 2
+
+    def test_branches_pass_through(self) -> None:
+        branch = CandidateBranch(
+            name="feat/x",
+            repo_slug="org/repo",
+            last_commit_date=datetime.now(UTC),
+            compare_url="https://github.com/org/repo/compare/feat%2Fx?expand=1",
+        )
+        groups = [
+            QueryGroupResult(
+                group_name="A",
+                group_type="test",
+                pull_requests=[_make_pr(id="PR_1", number=1)],
+                branches=[branch],
+            ),
+        ]
+        result = deduplicate_groups(groups)
+        assert result[0].branches == [branch]
+
+
+# --- _format_age ---
+
+
+class TestFormatAge:
+    def test_minutes(self) -> None:
+        assert _format_age(datetime.now(UTC) - timedelta(minutes=30)) == "30m"
+
+    def test_hours(self) -> None:
+        assert _format_age(datetime.now(UTC) - timedelta(hours=5)) == "5h"
+
+    def test_days(self) -> None:
+        assert _format_age(datetime.now(UTC) - timedelta(days=3)) == "3d"
+
+    def test_weeks(self) -> None:
+        assert _format_age(datetime.now(UTC) - timedelta(weeks=2)) == "2w"
+
+    def test_zero_shows_1m(self) -> None:
+        assert _format_age(datetime.now(UTC) - timedelta(seconds=10)) == "1m"
+
+
+# --- CandidateBranch ---
+
+
+class TestCandidateBranch:
+    def test_age_display(self) -> None:
+        branch = CandidateBranch(
+            name="feat/foo",
+            repo_slug="org/repo",
+            last_commit_date=datetime.now(UTC) - timedelta(hours=3),
+            compare_url="https://github.com/org/repo/compare/feat%2Ffoo?expand=1",
+        )
+        assert branch.age_display == "3h"
+
+
+# --- parse_refs_results ---
+
+
+class TestParseRefsResults:
+    def _make_refs_data(self, nodes: list[dict], default_branch: str = "main") -> dict:
+        return {
+            "data": {
+                "repository": {
+                    "defaultBranchRef": {"name": default_branch},
+                    "refs": {"nodes": nodes},
+                }
+            }
+        }
+
+    def _make_ref_node(
+        self,
+        name: str = "feat/test",
+        login: str = "testuser",
+        committed_date: str | None = None,
+        open_prs: int = 0,
+        author_user: dict | None = None,
+    ) -> dict:
+        if committed_date is None:
+            committed_date = datetime.now(UTC).isoformat()
+        if author_user is None:
+            author_user = {"login": login}
+        return {
+            "name": name,
+            "target": {
+                "committedDate": committed_date,
+                "author": {"user": author_user},
+            },
+            "associatedPullRequests": {"totalCount": open_prs},
+        }
+
+    def test_basic_candidate(self) -> None:
+        node = self._make_ref_node(name="feat/test", login="testuser")
+        data = self._make_refs_data([node])
+        result = parse_refs_results(data, "testuser", "org", "repo", "main")
+        assert len(result) == 1
+        assert result[0].name == "feat/test"
+        assert result[0].repo_slug == "org/repo"
+        assert "feat%2Ftest" in result[0].compare_url
+
+    def test_filters_by_username(self) -> None:
+        node = self._make_ref_node(login="otheruser")
+        data = self._make_refs_data([node])
+        result = parse_refs_results(data, "testuser", "org", "repo", "main")
+        assert result == []
+
+    def test_excludes_default_branch(self) -> None:
+        node = self._make_ref_node(name="main")
+        data = self._make_refs_data([node])
+        result = parse_refs_results(data, "testuser", "org", "repo", "main")
+        assert result == []
+
+    def test_excludes_branches_with_open_prs(self) -> None:
+        node = self._make_ref_node(open_prs=1)
+        data = self._make_refs_data([node])
+        result = parse_refs_results(data, "testuser", "org", "repo", "main")
+        assert result == []
+
+    def test_excludes_old_branches(self) -> None:
+        old_date = (datetime.now(UTC) - timedelta(days=10)).isoformat()
+        node = self._make_ref_node(committed_date=old_date)
+        data = self._make_refs_data([node])
+        result = parse_refs_results(data, "testuser", "org", "repo", "main")
+        assert result == []
+
+    def test_url_encodes_slashes(self) -> None:
+        node = self._make_ref_node(name="feature/foo/bar")
+        data = self._make_refs_data([node])
+        result = parse_refs_results(data, "testuser", "org", "repo", "main")
+        assert len(result) == 1
+        assert "feature%2Ffoo%2Fbar" in result[0].compare_url
+
+    def test_null_author_skipped(self) -> None:
+        node = self._make_ref_node()
+        node["target"]["author"]["user"] = None
+        data = self._make_refs_data([node])
+        result = parse_refs_results(data, "testuser", "org", "repo", "main")
+        assert result == []
+
+    def test_null_author_object_skipped(self) -> None:
+        node = self._make_ref_node()
+        node["target"]["author"] = None
+        data = self._make_refs_data([node])
+        result = parse_refs_results(data, "testuser", "org", "repo", "main")
+        assert result == []

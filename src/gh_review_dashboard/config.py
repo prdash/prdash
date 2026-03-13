@@ -25,6 +25,7 @@ class QueryGroupType(str, Enum):
     MENTIONED = "mentioned"
     AUTHORED = "authored"
     LABEL = "label"
+    READY_TO_PR = "ready_to_pr"
 
 
 class QueryGroupConfig(BaseModel):
@@ -50,6 +51,7 @@ DEFAULT_QUERY_GROUPS: list[QueryGroupConfig] = [
     QueryGroupConfig(
         type=QueryGroupType.LABEL, name="Labeled", labels=[], enabled=False
     ),
+    QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR"),
 ]
 
 

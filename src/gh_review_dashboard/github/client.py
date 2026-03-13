@@ -6,16 +6,19 @@ import asyncio
 
 import httpx
 
-from gh_review_dashboard.config import AppConfig, QueryGroupConfig
+from gh_review_dashboard.config import AppConfig, QueryGroupConfig, QueryGroupType
 from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkError
 from gh_review_dashboard.github.queries import (
+    BRANCH_REFS_QUERY,
     DEFAULT_PAGE_SIZE,
     PR_SEARCH_QUERY,
     build_search_query,
 )
 from gh_review_dashboard.models import (
+    CandidateBranch,
     PullRequest,
     QueryGroupResult,
+    parse_refs_results,
     parse_search_results,
 )
 
@@ -101,6 +104,44 @@ class GitHubClient:
             pull_requests=all_prs,
         )
 
+    async def fetch_candidate_branches(
+        self, config: AppConfig, group: QueryGroupConfig
+    ) -> QueryGroupResult:
+        """Fetch candidate branches (no open PR) for the user across configured repos."""
+        if not config.repos:
+            return QueryGroupResult(
+                group_name=group.name,
+                group_type=group.type.value,
+            )
+
+        all_branches: list[CandidateBranch] = []
+        for repo_slug in config.repos:
+            owner, name = repo_slug.split("/", 1)
+            data = await self.execute_query(
+                BRANCH_REFS_QUERY, {"owner": owner, "name": name}
+            )
+            repository = data.get("data", {}).get("repository", {})  # type: ignore[union-attr]
+            default_ref = repository.get("defaultBranchRef") or {}
+            default_branch = default_ref.get("name", "main")
+            branches = parse_refs_results(
+                data, config.username, owner, name, default_branch  # type: ignore[arg-type]
+            )
+            all_branches.extend(branches)
+
+        return QueryGroupResult(
+            group_name=group.name,
+            group_type=group.type.value,
+            branches=all_branches,
+        )
+
+    async def _fetch_for_group(
+        self, config: AppConfig, group: QueryGroupConfig
+    ) -> QueryGroupResult:
+        """Dispatch to the appropriate fetch method based on group type."""
+        if group.type == QueryGroupType.READY_TO_PR:
+            return await self.fetch_candidate_branches(config, group)
+        return await self.fetch_group(config, group)
+
     async def fetch_all_groups(
         self, config: AppConfig
     ) -> tuple[list[QueryGroupResult], list[tuple[str, Exception]]]:
@@ -112,7 +153,7 @@ class GitHubClient:
         enabled_groups = [g for g in config.query_groups if g.enabled]
 
         results = await asyncio.gather(
-            *(self.fetch_group(config, g) for g in enabled_groups),
+            *(self._fetch_for_group(config, g) for g in enabled_groups),
             return_exceptions=True,
         )
 

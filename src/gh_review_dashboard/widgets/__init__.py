@@ -2,6 +2,8 @@
 
 from gh_review_dashboard.widgets.detail_pane import DetailPaneWidget
 from gh_review_dashboard.widgets.pr_list import (
+    BranchRow,
+    BranchSelected,
     EmptyGroupItem,
     GroupHeaderItem,
     NavigableListView,
@@ -10,6 +12,8 @@ from gh_review_dashboard.widgets.pr_list import (
 )
 
 __all__ = [
+    "BranchRow",
+    "BranchSelected",
     "DetailPaneWidget",
     "EmptyGroupItem",
     "GroupHeaderItem",

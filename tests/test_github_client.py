@@ -60,6 +60,35 @@ def _minimal_pr_node(pr_id: str = "PR_1", number: int = 1, title: str = "Test PR
 # --- TestBuildSearchQuery ---
 
 
+def _branch_refs_response(
+    nodes: list[dict], default_branch: str = "main"
+) -> dict:
+    return {
+        "data": {
+            "repository": {
+                "defaultBranchRef": {"name": default_branch},
+                "refs": {"nodes": nodes},
+            }
+        }
+    }
+
+
+def _make_ref_node(
+    name: str = "feat/test",
+    login: str = "testuser",
+    committed_date: str = "2026-03-11T10:00:00Z",
+    open_prs: int = 0,
+) -> dict:
+    return {
+        "name": name,
+        "target": {
+            "committedDate": committed_date,
+            "author": {"user": {"login": login}},
+        },
+        "associatedPullRequests": {"totalCount": open_prs},
+    }
+
+
 class TestBuildSearchQuery:
     def test_direct_reviewer(self) -> None:
         config = _make_config()
@@ -144,6 +173,12 @@ class TestBuildSearchQuery:
         group = QueryGroupConfig(type=QueryGroupType.LABEL, name="Labels", labels=["bug", "urgent"])
         queries = build_search_query(config, group)
         assert len(queries) == 4  # 2 repos × 2 labels
+
+    def test_ready_to_pr_returns_empty(self) -> None:
+        config = _make_config()
+        group = QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR")
+        queries = build_search_query(config, group)
+        assert queries == []
 
 
 # --- TestExecuteQuery ---
@@ -406,6 +441,90 @@ class TestPagination:
 
 
 # --- TestCreateHttpClient ---
+
+
+# --- TestFetchCandidateBranches ---
+
+
+class TestFetchCandidateBranches:
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_single_repo(self) -> None:
+        from datetime import UTC, datetime
+        recent = datetime.now(UTC).isoformat()
+        respx.post("https://api.github.com/graphql").mock(
+            return_value=httpx.Response(
+                200, json=_branch_refs_response([_make_ref_node(committed_date=recent)])
+            )
+        )
+        config = _make_config()
+        group = QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR")
+        async with httpx.AsyncClient(base_url="https://api.github.com") as http:
+            client = GitHubClient(http)
+            result = await client.fetch_candidate_branches(config, group)
+        assert result.group_name == "Ready to PR"
+        assert len(result.branches) == 1
+        assert result.branches[0].name == "feat/test"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_multi_repo(self) -> None:
+        from datetime import UTC, datetime
+        recent = datetime.now(UTC).isoformat()
+        respx.post("https://api.github.com/graphql").mock(
+            side_effect=[
+                httpx.Response(200, json=_branch_refs_response([_make_ref_node(name="feat/a", committed_date=recent)])),
+                httpx.Response(200, json=_branch_refs_response([_make_ref_node(name="feat/b", committed_date=recent)])),
+            ]
+        )
+        config = _make_config(repos=["org/repo1", "org/repo2"])
+        group = QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR")
+        async with httpx.AsyncClient(base_url="https://api.github.com") as http:
+            client = GitHubClient(http)
+            result = await client.fetch_candidate_branches(config, group)
+        assert len(result.branches) == 2
+
+    @pytest.mark.asyncio
+    async def test_empty_repos(self) -> None:
+        config = _make_config(repos=[])
+        group = QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR")
+        async with httpx.AsyncClient(base_url="https://api.github.com") as http:
+            client = GitHubClient(http)
+            result = await client.fetch_candidate_branches(config, group)
+        assert result.branches == []
+
+
+# --- TestFetchAllGroupsWithBranches ---
+
+
+class TestFetchAllGroupsWithBranches:
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_dispatches_ready_to_pr(self) -> None:
+        from datetime import UTC, datetime
+        recent = datetime.now(UTC).isoformat()
+        respx.post("https://api.github.com/graphql").mock(
+            side_effect=[
+                httpx.Response(200, json=_graphql_response([_minimal_pr_node()])),
+                httpx.Response(200, json=_branch_refs_response([_make_ref_node(committed_date=recent)])),
+            ]
+        )
+        config = _make_config(
+            query_groups=[
+                QueryGroupConfig(type=QueryGroupType.DIRECT_REVIEWER, name="Direct"),
+                QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR"),
+            ]
+        )
+        async with httpx.AsyncClient(base_url="https://api.github.com") as http:
+            client = GitHubClient(http)
+            results, errors = await client.fetch_all_groups(config)
+        assert len(results) == 2
+        assert len(errors) == 0
+        # One group has PRs, the other has branches
+        pr_group = next(r for r in results if r.group_name == "Direct")
+        branch_group = next(r for r in results if r.group_name == "Ready to PR")
+        assert len(pr_group.pull_requests) == 1
+        assert len(branch_group.branches) == 1
 
 
 class TestCreateHttpClient:

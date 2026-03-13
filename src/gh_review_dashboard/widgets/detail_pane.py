@@ -9,7 +9,7 @@ from textual.containers import VerticalScroll
 from textual.widget import Widget
 from textual.widgets import Markdown, Static
 
-from gh_review_dashboard.models import PullRequest
+from gh_review_dashboard.models import CandidateBranch, PullRequest
 
 _CHECK_ICONS = {"SUCCESS": "*", "FAILURE": "!", None: "~"}
 
@@ -139,6 +139,26 @@ class DetailPaneWidget(Widget):
         desc_content = f"---\n### Description\n\n{_format_description(pr)}"
         desc_widget.update(desc_content)
         desc_widget.remove_class("hidden")
+
+    def show_branch(self, branch: CandidateBranch) -> None:
+        """Display details for a candidate branch."""
+        self.query_one("#detail-placeholder").add_class("hidden")
+
+        metadata = (
+            f"{branch.repo_slug} {branch.name}\n"
+            f"last pushed {branch.age_display} ago\n"
+            f"{branch.compare_url}"
+        )
+        meta_widget = self.query_one("#detail-metadata", Static)
+        meta_widget.update(metadata)
+        meta_widget.remove_class("hidden")
+
+        desc_widget = self.query_one("#detail-description", Markdown)
+        desc_widget.update("---\n### Description\n\n*No PR yet — press Enter to create one.*")
+        desc_widget.remove_class("hidden")
+
+        for selector in ("#detail-reviewers", "#detail-labels", "#detail-checks", "#detail-timeline"):
+            self.query_one(selector).add_class("hidden")
 
     def clear(self) -> None:
         """Show the empty/placeholder state."""

@@ -114,7 +114,7 @@ Depends on Phase 2 (T04), Phase 3 (T06, T07).
 
 | ID | Task | Dependencies | Status |
 |---|---|---|---|
-| T30 | "Ready to PR" branch detection (detect user's recent branches without open PRs, display as query group, Enter opens GitHub new-PR page) | T04, T06, T07 | not started |
+| T30 | "Ready to PR" branch detection (detect user's recent branches without open PRs, display as query group, Enter opens GitHub new-PR page) | T04, T06, T07 | completed |
 
 ## Feature Coverage
 

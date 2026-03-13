@@ -2,9 +2,25 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import urllib.parse
+from datetime import UTC, datetime, timedelta
 
 from pydantic import BaseModel, Field, computed_field
+
+
+def _format_age(dt: datetime) -> str:
+    """Human-readable age: '30m', '5h', '3d', '2w'."""
+    delta = datetime.now(UTC) - dt
+    total_minutes = int(delta.total_seconds() / 60)
+    if total_minutes < 60:
+        return f"{max(total_minutes, 1)}m"
+    total_hours = total_minutes // 60
+    if total_hours < 24:
+        return f"{total_hours}h"
+    total_days = total_hours // 24
+    if total_days < 7:
+        return f"{total_days}d"
+    return f"{total_days // 7}w"
 
 
 class Reviewer(BaseModel, frozen=True):
@@ -80,17 +96,22 @@ class PullRequest(BaseModel, frozen=True):
     @property
     def age_display(self) -> str:
         """Human-readable age: '30m', '5h', '3d', '2w'."""
-        delta = datetime.now(UTC) - self.created_at
-        total_minutes = int(delta.total_seconds() / 60)
-        if total_minutes < 60:
-            return f"{max(total_minutes, 1)}m"
-        total_hours = total_minutes // 60
-        if total_hours < 24:
-            return f"{total_hours}h"
-        total_days = total_hours // 24
-        if total_days < 7:
-            return f"{total_days}d"
-        return f"{total_days // 7}w"
+        return _format_age(self.created_at)
+
+
+class CandidateBranch(BaseModel, frozen=True):
+    """A branch that could become a PR."""
+
+    name: str
+    repo_slug: str
+    last_commit_date: datetime
+    compare_url: str
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def age_display(self) -> str:
+        """Human-readable age of the last commit."""
+        return _format_age(self.last_commit_date)
 
 
 class QueryGroupResult(BaseModel):
@@ -99,6 +120,7 @@ class QueryGroupResult(BaseModel):
     group_name: str
     group_type: str
     pull_requests: list[PullRequest] = Field(default_factory=list)
+    branches: list[CandidateBranch] = Field(default_factory=list)
 
 
 def deduplicate_groups(groups: list[QueryGroupResult]) -> list[QueryGroupResult]:
@@ -112,6 +134,7 @@ def deduplicate_groups(groups: list[QueryGroupResult]) -> list[QueryGroupResult]
             group_name=group.group_name,
             group_type=group.group_type,
             pull_requests=filtered,
+            branches=group.branches,
         ))
     return deduped
 
@@ -258,3 +281,56 @@ def parse_search_results(
 
     prs = [parse_pr_node(node) for node in nodes if node]
     return prs, page_info["hasNextPage"], page_info.get("endCursor")
+
+
+def parse_refs_results(
+    data: dict,
+    username: str,
+    owner: str,
+    repo: str,
+    default_branch: str,
+) -> list[CandidateBranch]:
+    """Parse branch refs and filter to candidate branches without open PRs."""
+    repository = data.get("data", {}).get("repository", {})
+    refs = repository.get("refs", {})
+    nodes = refs.get("nodes", [])
+
+    cutoff = datetime.now(UTC) - timedelta(days=7)
+    branches: list[CandidateBranch] = []
+
+    for node in nodes:
+        name = node.get("name", "")
+        if name == default_branch:
+            continue
+
+        # Skip branches with open PRs
+        assoc = node.get("associatedPullRequests", {})
+        if assoc and assoc.get("totalCount", 0) > 0:
+            continue
+
+        target = node.get("target", {}) or {}
+        author_user = (target.get("author") or {}).get("user")
+        if author_user is None:
+            continue
+        if author_user.get("login") != username:
+            continue
+
+        committed_date_str = target.get("committedDate")
+        if not committed_date_str:
+            continue
+
+        committed_date = datetime.fromisoformat(committed_date_str.replace("Z", "+00:00"))
+        if committed_date < cutoff:
+            continue
+
+        encoded = urllib.parse.quote(name, safe="")
+        compare_url = f"https://github.com/{owner}/{repo}/compare/{encoded}?expand=1"
+
+        branches.append(CandidateBranch(
+            name=name,
+            repo_slug=f"{owner}/{repo}",
+            last_commit_date=committed_date,
+            compare_url=compare_url,
+        ))
+
+    return branches

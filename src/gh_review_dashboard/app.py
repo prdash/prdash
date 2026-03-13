@@ -10,7 +10,7 @@ from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkErr
 from gh_review_dashboard.github.client import GitHubClient
 from gh_review_dashboard.models import deduplicate_groups
 from gh_review_dashboard.screens.settings import SettingsScreen
-from gh_review_dashboard.widgets import DetailPaneWidget, PRListWidget, PRSelected
+from gh_review_dashboard.widgets import BranchSelected, DetailPaneWidget, PRListWidget, PRSelected
 
 
 class ReviewDashboardApp(App):
@@ -116,3 +116,7 @@ class ReviewDashboardApp(App):
     @on(PRSelected)
     def handle_pr_selected(self, event: PRSelected) -> None:
         self.query_one(DetailPaneWidget).show_pr(event.pull_request)
+
+    @on(BranchSelected)
+    def handle_branch_selected(self, event: BranchSelected) -> None:
+        self.query_one(DetailPaneWidget).show_branch(event.branch)

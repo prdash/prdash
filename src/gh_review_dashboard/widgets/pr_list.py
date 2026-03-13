@@ -11,7 +11,7 @@ from textual.widget import Widget
 from textual.containers import Horizontal
 from textual.widgets import ListItem, ListView, Static
 
-from gh_review_dashboard.models import PullRequest, QueryGroupResult
+from gh_review_dashboard.models import CandidateBranch, PullRequest, QueryGroupResult
 
 _CI_LABELS = {
     "passing": "[green]CI:pass[/green]",
@@ -91,6 +91,30 @@ class PRRow(ListItem):
             yield Static(f"{title_line}\n{meta_line}", classes=classes)
 
 
+class BranchSelected(Message):
+    """Emitted when a candidate branch is highlighted in the list."""
+
+    def __init__(self, branch: CandidateBranch) -> None:
+        self.branch = branch
+        super().__init__()
+
+
+class BranchRow(ListItem):
+    """A single candidate branch row in the list."""
+
+    def __init__(self, branch: CandidateBranch, **kwargs: object) -> None:
+        self.branch = branch
+        super().__init__(**kwargs)
+
+    def compose(self):
+        repo_prefix = f"[dim]{escape(self.branch.repo_slug)}[/dim]  " if self.branch.repo_slug else ""
+        title_line = f"{repo_prefix}{escape(self.branch.name)}"
+        meta_line = f"[dim]{self.branch.age_display}[/dim] · [cyan]ready to PR[/cyan]"
+        with Horizontal(classes="pr-row-container"):
+            yield Static(" ", classes="pr-row-marker")
+            yield Static(f"{title_line}\n{meta_line}", classes="pr-row-label")
+
+
 class NavigableListView(ListView):
     """ListView with j/k vim-style navigation."""
 
@@ -121,7 +145,9 @@ class PRListWidget(Widget):
         # Initialize header states for new groups; preserve existing collapse state
         for group in groups:
             if group.group_name not in self._header_states:
-                self._header_states[group.group_name] = len(group.pull_requests) == 0
+                self._header_states[group.group_name] = (
+                    len(group.pull_requests) == 0 and len(group.branches) == 0
+                )
         self._rebuild_list()
 
     def _rebuild_list(self) -> None:
@@ -136,6 +162,8 @@ class PRListWidget(Widget):
                 current_id = f"header:{item.group_name}"
             elif isinstance(item, PRRow):
                 current_id = f"pr:{item.pr.id}"
+            elif isinstance(item, BranchRow):
+                current_id = f"branch:{item.branch.name}"
 
         list_view.clear()
 
@@ -144,8 +172,9 @@ class PRListWidget(Widget):
 
         for i, group in enumerate(self._groups):
             collapsed = self._header_states.get(group.group_name, False)
+            total_count = len(group.pull_requests) + len(group.branches)
             header = GroupHeaderItem(
-                group.group_name, len(group.pull_requests), collapsed=collapsed,
+                group.group_name, total_count, collapsed=collapsed,
             )
             if i == 0:
                 header.add_class("first-group")
@@ -153,7 +182,7 @@ class PRListWidget(Widget):
             item_ids.append(f"header:{group.group_name}")
 
             if not collapsed:
-                if not group.pull_requests:
+                if not group.pull_requests and not group.branches:
                     items.append(EmptyGroupItem())
                     item_ids.append(f"empty:{group.group_name}")
                 else:
@@ -167,6 +196,9 @@ class PRListWidget(Widget):
                         approved_by_me = should_mark_approved and pr.is_approved_by(self._username)  # type: ignore[arg-type]
                         items.append(PRRow(pr, is_new=is_new, approved_by_me=approved_by_me))
                         item_ids.append(f"pr:{pr.id}")
+                    for branch in group.branches:
+                        items.append(BranchRow(branch))
+                        item_ids.append(f"branch:{branch.name}")
 
         for item in items:
             list_view.append(item)
@@ -200,6 +232,8 @@ class PRListWidget(Widget):
             pass  # No-op for empty placeholder
         elif isinstance(event.item, PRRow):
             webbrowser.open(event.item.pr.url)
+        elif isinstance(event.item, BranchRow):
+            webbrowser.open(event.item.branch.compare_url)
 
     def on_key(self, event) -> None:
         """Handle left/right arrow keys for group header collapse/expand."""
@@ -223,6 +257,8 @@ class PRListWidget(Widget):
             event.stop()
 
     def on_list_view_highlighted(self, event: ListView.Highlighted) -> None:
-        """Emit PRSelected when a PR row is highlighted."""
+        """Emit PRSelected or BranchSelected when a row is highlighted."""
         if event.item is not None and isinstance(event.item, PRRow):
             self.post_message(PRSelected(event.item.pr))
+        elif event.item is not None and isinstance(event.item, BranchRow):
+            self.post_message(BranchSelected(event.item.branch))

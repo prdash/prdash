@@ -5,8 +5,10 @@ from unittest.mock import patch
 import pytest
 
 from gh_review_dashboard.app import ReviewDashboardApp
-from gh_review_dashboard.models import PullRequest, QueryGroupResult, Reviewer
+from gh_review_dashboard.models import CandidateBranch, PullRequest, QueryGroupResult, Reviewer
 from gh_review_dashboard.widgets.pr_list import (
+    BranchRow,
+    BranchSelected,
     EmptyGroupItem,
     GroupHeaderItem,
     NavigableListView,
@@ -826,3 +828,148 @@ async def test_no_username_no_approved_class():
         from textual.widgets import Static
         label = rows[0].query_one(".pr-row-label", Static)
         assert "pr-row-approved" not in label.classes
+
+
+# --- BranchRow tests (T30) ---
+
+
+def _make_branch(name: str = "feat/test") -> CandidateBranch:
+    from datetime import UTC, datetime, timedelta
+    return CandidateBranch(
+        name=name,
+        repo_slug="org/repo",
+        last_commit_date=datetime.now(UTC) - timedelta(hours=2),
+        compare_url=f"https://github.com/org/repo/compare/feat%2Ftest?expand=1",
+    )
+
+
+@pytest.mark.asyncio
+async def test_branch_row_renders_name_and_label():
+    """BranchRow should display the branch name and 'ready to PR' label."""
+    app = _make_app()
+    branch = _make_branch()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Ready to PR",
+                group_type="ready_to_pr",
+                branches=[branch],
+            ),
+        ])
+        await pilot.pause()
+
+        rows = list(widget.query(BranchRow))
+        assert len(rows) == 1
+        from textual.widgets import Static
+        label = rows[0].query_one(".pr-row-label", Static)
+        content = str(label.content)
+        assert "feat/test" in content
+        assert "ready to PR" in content
+
+
+@pytest.mark.asyncio
+async def test_group_header_count_includes_branches(sample_pr):
+    """Group header count should include both PRs and branches."""
+    app = _make_app()
+    branch = _make_branch()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Mixed",
+                group_type="test",
+                pull_requests=[sample_pr],
+                branches=[branch],
+            ),
+        ])
+        await pilot.pause()
+
+        headers = list(widget.query(GroupHeaderItem))
+        assert headers[0].count == 2  # 1 PR + 1 branch
+
+
+@pytest.mark.asyncio
+async def test_enter_on_branch_row_opens_compare_url():
+    """Pressing Enter on a BranchRow should open the compare URL."""
+    app = _make_app()
+    branch = _make_branch()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Ready to PR",
+                group_type="ready_to_pr",
+                branches=[branch],
+            ),
+        ])
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        # Move to the BranchRow (index 0 is header, 1 is branch)
+        await pilot.press("j")
+        await pilot.pause()
+
+        with patch("gh_review_dashboard.widgets.pr_list.webbrowser.open") as mock_open:
+            await pilot.press("enter")
+            await pilot.pause()
+            mock_open.assert_called_once_with(branch.compare_url)
+
+
+@pytest.mark.asyncio
+async def test_highlight_branch_row_posts_branch_selected():
+    """Highlighting a BranchRow should post a BranchSelected message."""
+    app = _make_app()
+    branch = _make_branch()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Ready to PR",
+                group_type="ready_to_pr",
+                branches=[branch],
+            ),
+        ])
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        # Move to the branch row
+        await pilot.press("j")
+        await pilot.pause()
+
+        # Verify detail pane updated (BranchSelected -> show_branch)
+        from textual.widgets import Static
+        meta = pilot.app.query_one("#detail-metadata", Static)
+        assert "hidden" not in meta.classes
+        content = str(meta.content)
+        assert "feat/test" in content
+
+
+@pytest.mark.asyncio
+async def test_group_with_only_branches_not_auto_collapsed():
+    """A group with branches but no PRs should not be auto-collapsed."""
+    app = _make_app()
+    branch = _make_branch()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Ready to PR",
+                group_type="ready_to_pr",
+                branches=[branch],
+            ),
+        ])
+        await pilot.pause()
+
+        headers = list(widget.query(GroupHeaderItem))
+        assert headers[0].collapsed is False
+        rows = list(widget.query(BranchRow))
+        assert len(rows) == 1
+
+

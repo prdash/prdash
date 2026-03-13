@@ -53,6 +53,7 @@ class TestLoadConfigHappyPath:
         assert config.username == "testuser"
         assert config.team_slugs == ["team-a", "team-b"]
         assert config.poll_interval == 120
+        # Only the 2 explicit groups from the config file
         assert len(config.query_groups) == 2
         assert config.query_groups[0].type == QueryGroupType.DIRECT_REVIEWER
         assert config.query_groups[1].labels == ["priority/high"]
@@ -70,10 +71,11 @@ class TestLoadConfigHappyPath:
         assert config.repos == []
         assert config.poll_interval == 300
         assert config.team_slugs == []
-        assert len(config.query_groups) == 5
+        assert len(config.query_groups) == 6
         group_types = [g.type for g in config.query_groups]
         assert QueryGroupType.DIRECT_REVIEWER in group_types
         assert QueryGroupType.LABEL in group_types
+        assert QueryGroupType.READY_TO_PR in group_types
 
     def test_old_repo_config_migrates(self, tmp_path: Path) -> None:
         """Old-style [repo] config should be migrated to repos list."""
@@ -317,7 +319,9 @@ class TestSaveConfig:
         save_config(config, path)
         loaded = load_config(path)
 
+        # Only the 1 explicit group round-trips
         assert len(loaded.query_groups) == 1
+        assert loaded.query_groups[0].type == QueryGroupType.LABEL
         assert loaded.query_groups[0].labels == ["priority/high", "priority/critical"]
 
     def test_round_trip_empty_team_slugs(self, tmp_path: Path) -> None:
@@ -342,6 +346,27 @@ class TestSaveConfig:
         assert loaded.repos == ["org/repo1", "org/repo2"]
 
 
+class TestReadyToPrConfig:
+    def test_ready_to_pr_enum_exists(self) -> None:
+        assert QueryGroupType.READY_TO_PR == "ready_to_pr"
+
+    def test_default_groups_include_ready_to_pr_last(self) -> None:
+        from gh_review_dashboard.config import DEFAULT_QUERY_GROUPS
+        assert DEFAULT_QUERY_GROUPS[-1].type == QueryGroupType.READY_TO_PR
+        assert DEFAULT_QUERY_GROUPS[-1].name == "Ready to PR"
+
+    def test_round_trip_ready_to_pr(self, tmp_path: Path) -> None:
+        groups = [
+            QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR"),
+        ]
+        config = AppConfig(repos=["org/repo"], username="user", query_groups=groups)
+        path = tmp_path / "config.toml"
+        save_config(config, path)
+        loaded = load_config(path)
+        assert loaded.query_groups[0].type == QueryGroupType.READY_TO_PR
+        assert loaded.query_groups[0].name == "Ready to PR"
+
+
 class TestCustomQueryGroups:
     def test_custom_groups_override_defaults(self, tmp_path: Path) -> None:
         path = _write_toml(
@@ -357,6 +382,7 @@ class TestCustomQueryGroups:
 
         config = load_config(path)
 
+        # Only the 1 explicit group — no backfill
         assert len(config.query_groups) == 1
         assert config.query_groups[0].type == QueryGroupType.AUTHORED
         assert config.query_groups[0].name == "Mine"

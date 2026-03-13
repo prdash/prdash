@@ -63,6 +63,35 @@ query($searchQuery: String!, $first: Int!, $after: String) {
 """
 
 
+BRANCH_REFS_QUERY = """\
+query($owner: String!, $name: String!) {
+  repository(owner: $owner, name: $name) {
+    defaultBranchRef { name }
+    refs(
+      refPrefix: "refs/heads/"
+      first: 100
+      orderBy: {field: TAG_COMMIT_DATE, direction: DESC}
+    ) {
+      nodes {
+        name
+        target {
+          ... on Commit {
+            committedDate
+            author {
+              user { login }
+            }
+          }
+        }
+        associatedPullRequests(states: OPEN, first: 1) {
+          totalCount
+        }
+      }
+    }
+  }
+}
+"""
+
+
 def build_search_query(config: AppConfig, group: QueryGroupConfig) -> list[str]:
     """Build GitHub search query strings for a query group.
 
@@ -92,3 +121,5 @@ def build_search_query(config: AppConfig, group: QueryGroupConfig) -> list[str]:
             return [f"{p} author:{config.username}" for p in prefixes]
         case QueryGroupType.LABEL:
             return [f'{p} label:"{label}"' for p in prefixes for label in group.labels]
+        case QueryGroupType.READY_TO_PR:
+            return []
