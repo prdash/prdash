@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import urllib.parse
 
 import httpx
 
@@ -19,6 +20,7 @@ from gh_review_dashboard.models import (
     PullRequest,
     QueryGroupResult,
     parse_branch_verification,
+    parse_compare_response,
     parse_search_results,
     parse_user_events,
 )
@@ -144,6 +146,26 @@ class GitHubClient:
 
         return all_events
 
+    async def _fetch_branch_compare(
+        self,
+        repo_slug: str,
+        default_branch: str,
+        branch_name: str,
+    ) -> dict | None:
+        """Fetch compare data for a branch vs its default branch.
+
+        Returns parsed compare fields or None on any error.
+        """
+        encoded_branch = urllib.parse.quote(branch_name, safe="")
+        url = f"/repos/{repo_slug}/compare/{default_branch}...{encoded_branch}"
+        try:
+            response = await self._client.get(url)
+            if response.status_code != 200:
+                return None
+            return parse_compare_response(response.json())
+        except Exception:
+            return None
+
     async def fetch_candidate_branches(
         self, config: AppConfig, group: QueryGroupConfig
     ) -> QueryGroupResult:
@@ -168,6 +190,25 @@ class GitHubClient:
         query, variables, alias_map = build_branch_verification_query(repo_branches)
         data = await self.execute_query(query, variables)
         branches = parse_branch_verification(data, alias_map)  # type: ignore[arg-type]
+
+        # Phase 3: Enrich verified branches with compare data
+        if branches:
+            compare_results = await asyncio.gather(
+                *(
+                    self._fetch_branch_compare(
+                        b.repo_slug, b.default_branch, b.name
+                    )
+                    for b in branches
+                ),
+                return_exceptions=True,
+            )
+            enriched: list[CandidateBranch] = []
+            for branch, result in zip(branches, compare_results):
+                if isinstance(result, dict):
+                    enriched.append(branch.model_copy(update=result))
+                else:
+                    enriched.append(branch)
+            branches = enriched
 
         return QueryGroupResult(
             group_name=group.name,

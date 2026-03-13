@@ -9,7 +9,7 @@ from textual.containers import VerticalScroll
 from textual.widget import Widget
 from textual.widgets import Markdown, Static
 
-from gh_review_dashboard.models import CandidateBranch, PullRequest
+from gh_review_dashboard.models import CandidateBranch, PullRequest, _format_age
 
 _CHECK_ICONS = {"SUCCESS": "*", "FAILURE": "!", None: "~"}
 
@@ -94,6 +94,45 @@ def _format_timeline(pr: PullRequest) -> str:
     return "\n".join(lines)
 
 
+_FILE_STATUS_ICON = {
+    "added": "+",
+    "modified": "~",
+    "removed": "-",
+    "renamed": "→",
+}
+
+
+def _format_branch_commits(branch: CandidateBranch) -> str:
+    """Format commit history for a candidate branch."""
+    if not branch.commits:
+        return ""
+    lines = ["--- Commits ---"]
+    for c in branch.commits:
+        age = _format_age(c.authored_date)
+        lines.append(f"  {c.short_sha} {c.message}  ({age} ago)")
+    if branch.total_commits > len(branch.commits):
+        remaining = branch.total_commits - len(branch.commits)
+        lines.append(f"  … and {remaining} more")
+    return "\n".join(lines)
+
+
+def _format_branch_files(branch: CandidateBranch) -> str:
+    """Format file change summary for a candidate branch."""
+    if not branch.files:
+        return ""
+    lines = [
+        f"--- Files ({branch.total_files} changed, "
+        f"+{branch.total_additions} -{branch.total_deletions}) ---"
+    ]
+    for f in branch.files:
+        icon = _FILE_STATUS_ICON.get(f.status, "?")
+        lines.append(f"  {icon} +{f.additions} -{f.deletions}  {f.filename}")
+    if branch.total_files > len(branch.files):
+        remaining = branch.total_files - len(branch.files)
+        lines.append(f"  … and {remaining} more")
+    return "\n".join(lines)
+
+
 class ScrollableDetailScroll(VerticalScroll):
     """VerticalScroll with j/k vim-style scrolling."""
 
@@ -113,6 +152,8 @@ class DetailPaneWidget(Widget):
                 id="detail-placeholder",
             )
             yield Static("", id="detail-metadata", classes="hidden detail-section", markup=False)
+            yield Static("", id="detail-commits", classes="hidden detail-section", markup=False)
+            yield Static("", id="detail-files", classes="hidden detail-section", markup=False)
             yield Static("", id="detail-reviewers", classes="hidden detail-section", markup=False)
             yield Markdown("", id="detail-description", classes="hidden detail-section")
             yield Static("", id="detail-labels", classes="hidden detail-section", markup=False)
@@ -122,6 +163,10 @@ class DetailPaneWidget(Widget):
     def show_pr(self, pr: PullRequest) -> None:
         """Display details for the given PR."""
         self.query_one("#detail-placeholder").add_class("hidden")
+
+        # Hide branch-specific sections
+        for selector in ("#detail-commits", "#detail-files"):
+            self.query_one(selector).add_class("hidden")
 
         sections = {
             "#detail-metadata": _format_metadata(pr),
@@ -152,6 +197,24 @@ class DetailPaneWidget(Widget):
         meta_widget = self.query_one("#detail-metadata", Static)
         meta_widget.update(metadata)
         meta_widget.remove_class("hidden")
+
+        # Commits section
+        commits_text = _format_branch_commits(branch)
+        commits_widget = self.query_one("#detail-commits", Static)
+        if commits_text:
+            commits_widget.update(commits_text)
+            commits_widget.remove_class("hidden")
+        else:
+            commits_widget.add_class("hidden")
+
+        # Files section
+        files_text = _format_branch_files(branch)
+        files_widget = self.query_one("#detail-files", Static)
+        if files_text:
+            files_widget.update(files_text)
+            files_widget.remove_class("hidden")
+        else:
+            files_widget.add_class("hidden")
 
         desc_widget = self.query_one("#detail-description", Markdown)
         desc_widget.update("---\n### Description\n\n*No PR yet — press Enter to create one.*")

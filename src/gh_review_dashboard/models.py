@@ -99,6 +99,28 @@ class PullRequest(BaseModel, frozen=True):
         return _format_age(self.created_at)
 
 
+class BranchCommit(BaseModel, frozen=True):
+    """A commit on a candidate branch."""
+
+    sha: str
+    short_sha: str
+    message: str
+    authored_date: datetime
+
+
+class BranchFileChange(BaseModel, frozen=True):
+    """A file changed on a candidate branch."""
+
+    filename: str
+    additions: int
+    deletions: int
+    status: str  # added, modified, removed, renamed
+
+
+MAX_DISPLAY_COMMITS = 10
+MAX_DISPLAY_FILES = 30
+
+
 class CandidateBranch(BaseModel, frozen=True):
     """A branch that could become a PR."""
 
@@ -106,6 +128,13 @@ class CandidateBranch(BaseModel, frozen=True):
     repo_slug: str
     last_commit_date: datetime
     compare_url: str
+    default_branch: str = "main"
+    commits: list[BranchCommit] = Field(default_factory=list)
+    files: list[BranchFileChange] = Field(default_factory=list)
+    total_commits: int = 0
+    total_files: int = 0
+    total_additions: int = 0
+    total_deletions: int = 0
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -318,6 +347,60 @@ def parse_user_events(
     return result
 
 
+def parse_compare_response(
+    data: dict,
+) -> dict:
+    """Parse a GitHub compare API response into branch enrichment fields.
+
+    Returns a dict suitable for CandidateBranch.model_copy(update=...).
+    """
+    raw_commits = data.get("commits", [])
+    raw_files = data.get("files", [])
+
+    commits: list[BranchCommit] = []
+    for c in raw_commits[:MAX_DISPLAY_COMMITS]:
+        commit_data = c.get("commit", {})
+        sha = c.get("sha", "")
+        message = (commit_data.get("message") or "").split("\n", 1)[0]
+        date_str = (commit_data.get("author") or {}).get("date", "")
+        authored_date = (
+            datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+            if date_str
+            else datetime.now(UTC)
+        )
+        commits.append(
+            BranchCommit(
+                sha=sha,
+                short_sha=sha[:7],
+                message=message,
+                authored_date=authored_date,
+            )
+        )
+
+    files: list[BranchFileChange] = []
+    for f in raw_files[:MAX_DISPLAY_FILES]:
+        files.append(
+            BranchFileChange(
+                filename=f.get("filename", ""),
+                additions=f.get("additions", 0),
+                deletions=f.get("deletions", 0),
+                status=f.get("status", "modified"),
+            )
+        )
+
+    total_additions = sum(f.get("additions", 0) for f in raw_files)
+    total_deletions = sum(f.get("deletions", 0) for f in raw_files)
+
+    return {
+        "commits": commits,
+        "files": files,
+        "total_commits": len(raw_commits),
+        "total_files": len(raw_files),
+        "total_additions": total_additions,
+        "total_deletions": total_deletions,
+    }
+
+
 def parse_branch_verification(
     data: dict,
     alias_map: list[tuple[str, str, str, str]],
@@ -377,6 +460,7 @@ def parse_branch_verification(
                 repo_slug=repo_slug,
                 last_commit_date=committed_date,
                 compare_url=compare_url,
+                default_branch=default_branches.get(repo_alias, "main"),
             )
         )
 

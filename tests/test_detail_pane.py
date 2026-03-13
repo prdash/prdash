@@ -4,10 +4,17 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from gh_review_dashboard.models import PullRequest
+from gh_review_dashboard.models import (
+    BranchCommit,
+    BranchFileChange,
+    CandidateBranch,
+    PullRequest,
+)
 from gh_review_dashboard.app import ReviewDashboardApp
 from gh_review_dashboard.widgets.detail_pane import (
     DetailPaneWidget,
+    _format_branch_commits,
+    _format_branch_files,
     _format_checks,
     _format_description,
     _format_labels,
@@ -177,3 +184,181 @@ def test_format_timeline(sample_pr):
 
 def test_format_timeline_empty(sample_pr_minimal):
     assert _format_timeline(sample_pr_minimal) == "None"
+
+
+# --- Branch detail helpers ---
+
+
+def _make_branch(**kwargs) -> CandidateBranch:
+    defaults = {
+        "name": "feat/test",
+        "repo_slug": "org/repo",
+        "last_commit_date": datetime.now(UTC) - timedelta(hours=2),
+        "compare_url": "https://github.com/org/repo/compare/feat%2Ftest?expand=1",
+        "default_branch": "main",
+    }
+    defaults.update(kwargs)
+    return CandidateBranch(**defaults)
+
+
+def _make_commits(n: int) -> list[BranchCommit]:
+    return [
+        BranchCommit(
+            sha=f"sha{i:010d}",
+            short_sha=f"sha{i:04d}",
+            message=f"commit {i}",
+            authored_date=datetime.now(UTC) - timedelta(hours=i),
+        )
+        for i in range(n)
+    ]
+
+
+def _make_files(n: int) -> list[BranchFileChange]:
+    return [
+        BranchFileChange(
+            filename=f"src/file{i}.py",
+            additions=i + 1,
+            deletions=i,
+            status="modified",
+        )
+        for i in range(n)
+    ]
+
+
+# --- _format_branch_commits ---
+
+
+class TestFormatBranchCommits:
+    def test_empty(self) -> None:
+        branch = _make_branch()
+        assert _format_branch_commits(branch) == ""
+
+    def test_normal(self) -> None:
+        branch = _make_branch(
+            commits=_make_commits(3),
+            total_commits=3,
+        )
+        result = _format_branch_commits(branch)
+        assert "--- Commits ---" in result
+        assert "commit 0" in result
+        assert "commit 2" in result
+        assert "… and" not in result
+
+    def test_truncated(self) -> None:
+        branch = _make_branch(
+            commits=_make_commits(10),
+            total_commits=25,
+        )
+        result = _format_branch_commits(branch)
+        assert "… and 15 more" in result
+
+
+# --- _format_branch_files ---
+
+
+class TestFormatBranchFiles:
+    def test_empty(self) -> None:
+        branch = _make_branch()
+        assert _format_branch_files(branch) == ""
+
+    def test_normal(self) -> None:
+        branch = _make_branch(
+            files=_make_files(3),
+            total_files=3,
+            total_additions=6,
+            total_deletions=3,
+        )
+        result = _format_branch_files(branch)
+        assert "--- Files (3 changed, +6 -3) ---" in result
+        assert "src/file0.py" in result
+        assert "src/file2.py" in result
+        assert "… and" not in result
+
+    def test_truncated(self) -> None:
+        branch = _make_branch(
+            files=_make_files(30),
+            total_files=50,
+            total_additions=100,
+            total_deletions=50,
+        )
+        result = _format_branch_files(branch)
+        assert "… and 20 more" in result
+
+    def test_file_status_icons(self) -> None:
+        branch = _make_branch(
+            files=[
+                BranchFileChange(filename="a.py", additions=1, deletions=0, status="added"),
+                BranchFileChange(filename="b.py", additions=0, deletions=1, status="removed"),
+                BranchFileChange(filename="c.py", additions=1, deletions=1, status="renamed"),
+            ],
+            total_files=3,
+            total_additions=2,
+            total_deletions=2,
+        )
+        result = _format_branch_files(branch)
+        lines = result.split("\n")
+        assert any("+" in l and "a.py" in l for l in lines)
+        assert any("-" in l and "b.py" in l for l in lines)
+        assert any("→" in l and "c.py" in l for l in lines)
+
+
+# --- Textual integration tests for branch detail ---
+
+
+@pytest.mark.asyncio
+async def test_show_branch_renders_commits():
+    branch = _make_branch(
+        commits=_make_commits(2),
+        total_commits=2,
+    )
+    app = ReviewDashboardApp()
+    async with app.run_test(size=(120, 40)) as pilot:
+        detail = pilot.app.query_one(DetailPaneWidget)
+        detail.show_branch(branch)
+        await pilot.pause()
+
+        commits_widget = pilot.app.query_one("#detail-commits")
+        assert "hidden" not in commits_widget.classes
+
+
+@pytest.mark.asyncio
+async def test_show_branch_renders_files():
+    branch = _make_branch(
+        files=_make_files(2),
+        total_files=2,
+        total_additions=3,
+        total_deletions=1,
+    )
+    app = ReviewDashboardApp()
+    async with app.run_test(size=(120, 40)) as pilot:
+        detail = pilot.app.query_one(DetailPaneWidget)
+        detail.show_branch(branch)
+        await pilot.pause()
+
+        files_widget = pilot.app.query_one("#detail-files")
+        assert "hidden" not in files_widget.classes
+
+
+@pytest.mark.asyncio
+async def test_show_branch_hides_empty_commits_and_files():
+    branch = _make_branch()
+    app = ReviewDashboardApp()
+    async with app.run_test(size=(120, 40)) as pilot:
+        detail = pilot.app.query_one(DetailPaneWidget)
+        detail.show_branch(branch)
+        await pilot.pause()
+
+        assert "hidden" in pilot.app.query_one("#detail-commits").classes
+        assert "hidden" in pilot.app.query_one("#detail-files").classes
+
+
+@pytest.mark.asyncio
+async def test_show_pr_hides_branch_sections(sample_pr):
+    app = ReviewDashboardApp()
+    async with app.run_test(size=(120, 40)) as pilot:
+        detail = pilot.app.query_one(DetailPaneWidget)
+        detail.show_pr(sample_pr)
+        await pilot.pause()
+
+        assert "hidden" in pilot.app.query_one("#detail-commits").classes
+        assert "hidden" in pilot.app.query_one("#detail-files").classes

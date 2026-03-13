@@ -674,6 +674,182 @@ class TestFetchAllGroupsWithBranches:
         assert len(branch_group.branches) == 1
 
 
+# --- TestFetchBranchCompare ---
+
+
+class TestFetchBranchCompare:
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_success(self) -> None:
+        from datetime import UTC, datetime
+        respx.get(url__regex=r".*/repos/.*/compare/.*").mock(
+            return_value=httpx.Response(200, json={
+                "commits": [
+                    {
+                        "sha": "abc1234567890",
+                        "commit": {
+                            "message": "feat: add widget",
+                            "author": {"date": "2026-03-10T12:00:00Z"},
+                        },
+                    }
+                ],
+                "files": [
+                    {
+                        "filename": "src/widget.py",
+                        "additions": 50,
+                        "deletions": 3,
+                        "status": "added",
+                    }
+                ],
+            })
+        )
+        async with httpx.AsyncClient(base_url="https://api.github.com") as http:
+            client = GitHubClient(http)
+            result = await client._fetch_branch_compare("org/repo", "main", "feat/widget")
+        assert result is not None
+        assert len(result["commits"]) == 1
+        assert result["commits"][0].short_sha == "abc1234"
+        assert len(result["files"]) == 1
+        assert result["total_additions"] == 50
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_404_returns_none(self) -> None:
+        respx.get(url__regex=r".*/repos/.*/compare/.*").mock(
+            return_value=httpx.Response(404, json={"message": "Not Found"})
+        )
+        async with httpx.AsyncClient(base_url="https://api.github.com") as http:
+            client = GitHubClient(http)
+            result = await client._fetch_branch_compare("org/repo", "main", "gone-branch")
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_network_error_returns_none(self) -> None:
+        async with httpx.AsyncClient(base_url="https://api.github.com") as http:
+            http._transport = _ErrorTransport(httpx.ConnectError("Connection refused"))
+            client = GitHubClient(http)
+            result = await client._fetch_branch_compare("org/repo", "main", "feat/x")
+        assert result is None
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_encodes_branch_name(self) -> None:
+        route = respx.get(url__regex=r".*/repos/.*/compare/.*").mock(
+            return_value=httpx.Response(200, json={"commits": [], "files": []})
+        )
+        async with httpx.AsyncClient(base_url="https://api.github.com") as http:
+            client = GitHubClient(http)
+            await client._fetch_branch_compare("org/repo", "main", "feat/my branch")
+        assert route.called
+        url = str(route.calls[0].request.url)
+        assert "feat%2Fmy%20branch" in url
+
+
+# --- TestFetchCandidateBranchesEnrichment ---
+
+
+class TestFetchCandidateBranchesEnrichment:
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_enriches_with_compare_data(self) -> None:
+        from datetime import UTC, datetime
+        recent = datetime.now(UTC).isoformat()
+        # Mock REST events
+        respx.get(url__regex=r".*/users/.*/events.*").mock(
+            side_effect=[
+                httpx.Response(200, json=_events_response([
+                    _make_push_event("myorg/myrepo", "feat/test"),
+                ])),
+                httpx.Response(200, json=[]),
+            ]
+        )
+        # Mock GraphQL verification
+        respx.post("https://api.github.com/graphql").mock(
+            return_value=httpx.Response(200, json={
+                "data": {
+                    "r0": {
+                        "defaultBranchRef": {"name": "main"},
+                        "b0_0": {
+                            "name": "feat/test",
+                            "target": {"committedDate": recent},
+                            "associatedPullRequests": {"totalCount": 0},
+                        },
+                    }
+                }
+            })
+        )
+        # Mock compare API
+        respx.get(url__regex=r".*/repos/.*/compare/.*").mock(
+            return_value=httpx.Response(200, json={
+                "commits": [
+                    {
+                        "sha": "abc1234567890",
+                        "commit": {
+                            "message": "feat: stuff",
+                            "author": {"date": recent},
+                        },
+                    }
+                ],
+                "files": [
+                    {"filename": "src/a.py", "additions": 10, "deletions": 2, "status": "modified"},
+                ],
+            })
+        )
+        config = _make_config()
+        group = QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR")
+        async with httpx.AsyncClient(base_url="https://api.github.com") as http:
+            client = GitHubClient(http)
+            result = await client.fetch_candidate_branches(config, group)
+        assert len(result.branches) == 1
+        branch = result.branches[0]
+        assert len(branch.commits) == 1
+        assert branch.commits[0].short_sha == "abc1234"
+        assert len(branch.files) == 1
+        assert branch.total_additions == 10
+        assert branch.total_deletions == 2
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_compare_failure_returns_branch_unchanged(self) -> None:
+        from datetime import UTC, datetime
+        recent = datetime.now(UTC).isoformat()
+        respx.get(url__regex=r".*/users/.*/events.*").mock(
+            side_effect=[
+                httpx.Response(200, json=_events_response([
+                    _make_push_event("myorg/myrepo", "feat/test"),
+                ])),
+                httpx.Response(200, json=[]),
+            ]
+        )
+        respx.post("https://api.github.com/graphql").mock(
+            return_value=httpx.Response(200, json={
+                "data": {
+                    "r0": {
+                        "defaultBranchRef": {"name": "main"},
+                        "b0_0": {
+                            "name": "feat/test",
+                            "target": {"committedDate": recent},
+                            "associatedPullRequests": {"totalCount": 0},
+                        },
+                    }
+                }
+            })
+        )
+        # Compare API fails
+        respx.get(url__regex=r".*/repos/.*/compare/.*").mock(
+            return_value=httpx.Response(500)
+        )
+        config = _make_config()
+        group = QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR")
+        async with httpx.AsyncClient(base_url="https://api.github.com") as http:
+            client = GitHubClient(http)
+            result = await client.fetch_candidate_branches(config, group)
+        assert len(result.branches) == 1
+        # Branch still has empty defaults
+        assert result.branches[0].commits == []
+        assert result.branches[0].files == []
+
+
 class TestCreateHttpClient:
     def test_creates_client_with_auth(self) -> None:
         client = create_http_client("ghp_test123")

@@ -4,9 +4,15 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from gh_review_dashboard.models import (
+    BranchCommit,
+    BranchFileChange,
     CandidateBranch,
     CheckRun,
+    MAX_DISPLAY_COMMITS,
+    MAX_DISPLAY_FILES,
     PullRequest,
     QueryGroupResult,
     Reviewer,
@@ -14,6 +20,7 @@ from gh_review_dashboard.models import (
     _format_age,
     deduplicate_groups,
     parse_branch_verification,
+    parse_compare_response,
     parse_pr_node,
     parse_search_results,
     parse_user_events,
@@ -695,3 +702,127 @@ class TestParseBranchVerification:
         assert len(result) == 2
         names = {b.name for b in result}
         assert names == {"feat/a", "feat/b"}
+
+    def test_default_branch_propagated(self) -> None:
+        data, alias_map = self._make_verification_data(default_branch="develop")
+        result = parse_branch_verification(data, alias_map)
+        assert len(result) == 1
+        assert result[0].default_branch == "develop"
+
+    def test_default_branch_defaults_to_main(self) -> None:
+        data, alias_map = self._make_verification_data()
+        result = parse_branch_verification(data, alias_map)
+        assert len(result) == 1
+        assert result[0].default_branch == "main"
+
+
+# --- BranchCommit / BranchFileChange ---
+
+
+class TestBranchCommit:
+    def test_construction(self) -> None:
+        c = BranchCommit(
+            sha="abc1234567890",
+            short_sha="abc1234",
+            message="fix: auth",
+            authored_date=datetime.now(UTC),
+        )
+        assert c.sha == "abc1234567890"
+        assert c.short_sha == "abc1234"
+        assert c.message == "fix: auth"
+
+    def test_frozen(self) -> None:
+        c = BranchCommit(
+            sha="abc", short_sha="abc", message="x", authored_date=datetime.now(UTC)
+        )
+        with pytest.raises(Exception):
+            c.sha = "new"  # type: ignore[misc]
+
+
+class TestBranchFileChange:
+    def test_construction(self) -> None:
+        f = BranchFileChange(
+            filename="src/main.py", additions=10, deletions=3, status="modified"
+        )
+        assert f.filename == "src/main.py"
+        assert f.additions == 10
+        assert f.deletions == 3
+        assert f.status == "modified"
+
+
+# --- parse_compare_response ---
+
+
+class TestParseCompareResponse:
+    def _make_commit(self, sha: str = "abc1234567890", message: str = "fix: bug") -> dict:
+        return {
+            "sha": sha,
+            "commit": {
+                "message": message,
+                "author": {"date": "2026-03-10T12:00:00Z"},
+            },
+        }
+
+    def _make_file(
+        self, filename: str = "src/main.py", additions: int = 5, deletions: int = 2, status: str = "modified"
+    ) -> dict:
+        return {
+            "filename": filename,
+            "additions": additions,
+            "deletions": deletions,
+            "status": status,
+        }
+
+    def test_happy_path(self) -> None:
+        data = {
+            "commits": [self._make_commit("aaa1111", "feat: add"), self._make_commit("bbb2222", "fix: typo")],
+            "files": [self._make_file("a.py", 10, 3), self._make_file("b.py", 2, 1)],
+        }
+        result = parse_compare_response(data)
+        assert len(result["commits"]) == 2
+        assert result["commits"][0].short_sha == "aaa1111"
+        assert result["commits"][1].message == "fix: typo"
+        assert len(result["files"]) == 2
+        assert result["total_commits"] == 2
+        assert result["total_files"] == 2
+        assert result["total_additions"] == 12
+        assert result["total_deletions"] == 4
+
+    def test_caps_commits(self) -> None:
+        commits = [self._make_commit(f"sha{i:010d}", f"commit {i}") for i in range(20)]
+        data = {"commits": commits, "files": []}
+        result = parse_compare_response(data)
+        assert len(result["commits"]) == MAX_DISPLAY_COMMITS
+        assert result["total_commits"] == 20
+
+    def test_caps_files(self) -> None:
+        files = [self._make_file(f"file{i}.py") for i in range(50)]
+        data = {"commits": [], "files": files}
+        result = parse_compare_response(data)
+        assert len(result["files"]) == MAX_DISPLAY_FILES
+        assert result["total_files"] == 50
+
+    def test_empty_data(self) -> None:
+        result = parse_compare_response({})
+        assert result["commits"] == []
+        assert result["files"] == []
+        assert result["total_commits"] == 0
+        assert result["total_files"] == 0
+        assert result["total_additions"] == 0
+        assert result["total_deletions"] == 0
+
+    def test_totals_sum_all_files(self) -> None:
+        """Totals should sum ALL files, not just the capped ones."""
+        files = [self._make_file(f"f{i}.py", additions=1, deletions=1) for i in range(50)]
+        data = {"commits": [], "files": files}
+        result = parse_compare_response(data)
+        assert result["total_additions"] == 50
+        assert result["total_deletions"] == 50
+
+    def test_multiline_commit_message_takes_first_line(self) -> None:
+        data = {
+            "commits": [self._make_commit(message="first line\n\nsecond line")],
+            "files": [],
+        }
+        result = parse_compare_response(data)
+        assert result["commits"][0].message == "first line"

@@ -117,6 +117,7 @@ Depends on Phase 2 (T04), Phase 3 (T06, T07).
 |---|---|---|---|
 | T30 | "Ready to PR" branch detection (detect user's recent branches without open PRs, display as query group, Enter opens GitHub new-PR page) | T04, T06, T07 | completed |
 | T34 | Fix "Ready to PR" for large repos (replace bulk refs query with Events API + GraphQL batch verification) | T30 | completed |
+| T35 | Branch detail pane: commits & file changes (enrich candidate branches with compare API data, render in detail pane) | T30, T34 | completed |
 
 ## Feature Coverage
 
