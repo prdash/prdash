@@ -283,54 +283,101 @@ def parse_search_results(
     return prs, page_info["hasNextPage"], page_info.get("endCursor")
 
 
-def parse_refs_results(
-    data: dict,
-    username: str,
-    owner: str,
-    repo: str,
-    default_branch: str,
-) -> list[CandidateBranch]:
-    """Parse branch refs and filter to candidate branches without open PRs."""
-    repository = data.get("data", {}).get("repository", {})
-    refs = repository.get("refs", {})
-    nodes = refs.get("nodes", [])
+def parse_user_events(
+    events: list[dict], repos: list[str]
+) -> dict[str, set[str]]:
+    """Parse REST user events into {repo_slug: {branch_names}}.
 
+    Handles PushEvent (ref = "refs/heads/branch") and
+    CreateEvent (ref_type = "branch", ref = "branch").
+    Filters to configured repos if non-empty.
+    """
+    repo_set = set(repos) if repos else None
+    result: dict[str, set[str]] = {}
+
+    for event in events:
+        event_type = event.get("type", "")
+        repo_name = (event.get("repo") or {}).get("name", "")
+        if not repo_name:
+            continue
+        if repo_set is not None and repo_name not in repo_set:
+            continue
+
+        if event_type == "PushEvent":
+            ref = (event.get("payload") or {}).get("ref", "")
+            if ref.startswith("refs/heads/"):
+                branch = ref[len("refs/heads/"):]
+                result.setdefault(repo_name, set()).add(branch)
+        elif event_type == "CreateEvent":
+            payload = event.get("payload") or {}
+            if payload.get("ref_type") == "branch":
+                branch = payload.get("ref", "")
+                if branch:
+                    result.setdefault(repo_name, set()).add(branch)
+
+    return result
+
+
+def parse_branch_verification(
+    data: dict,
+    alias_map: list[tuple[str, str, str, str]],
+) -> list[CandidateBranch]:
+    """Parse batched GraphQL branch verification response.
+
+    Skips: null refs (deleted), branches with open PRs, branches older than
+    7 days, and default branches.
+    """
+    gql_data = data.get("data", {})
     cutoff = datetime.now(UTC) - timedelta(days=7)
     branches: list[CandidateBranch] = []
 
-    for node in nodes:
-        name = node.get("name", "")
-        if name == default_branch:
+    # Collect default branch names per repo alias
+    default_branches: dict[str, str] = {}
+    for repo_alias in {a[0] for a in alias_map}:
+        repo_data = gql_data.get(repo_alias, {})
+        default_ref = (repo_data.get("defaultBranchRef") or {})
+        default_branches[repo_alias] = default_ref.get("name", "main")
+
+    for repo_alias, branch_alias, repo_slug, branch_name in alias_map:
+        repo_data = gql_data.get(repo_alias, {})
+        ref_data = repo_data.get(branch_alias)
+
+        # Null ref means branch was deleted
+        if ref_data is None:
+            continue
+
+        # Skip default branch
+        if branch_name == default_branches.get(repo_alias, "main"):
             continue
 
         # Skip branches with open PRs
-        assoc = node.get("associatedPullRequests", {})
+        assoc = ref_data.get("associatedPullRequests", {})
         if assoc and assoc.get("totalCount", 0) > 0:
             continue
 
-        target = node.get("target", {}) or {}
-        author_user = (target.get("author") or {}).get("user")
-        if author_user is None:
-            continue
-        if author_user.get("login") != username:
-            continue
-
+        # Parse commit date
+        target = ref_data.get("target", {}) or {}
         committed_date_str = target.get("committedDate")
         if not committed_date_str:
             continue
 
-        committed_date = datetime.fromisoformat(committed_date_str.replace("Z", "+00:00"))
+        committed_date = datetime.fromisoformat(
+            committed_date_str.replace("Z", "+00:00")
+        )
         if committed_date < cutoff:
             continue
 
-        encoded = urllib.parse.quote(name, safe="")
+        owner, repo = repo_slug.split("/", 1)
+        encoded = urllib.parse.quote(branch_name, safe="")
         compare_url = f"https://github.com/{owner}/{repo}/compare/{encoded}?expand=1"
 
-        branches.append(CandidateBranch(
-            name=name,
-            repo_slug=f"{owner}/{repo}",
-            last_commit_date=committed_date,
-            compare_url=compare_url,
-        ))
+        branches.append(
+            CandidateBranch(
+                name=branch_name,
+                repo_slug=repo_slug,
+                last_commit_date=committed_date,
+                compare_url=compare_url,
+            )
+        )
 
     return branches

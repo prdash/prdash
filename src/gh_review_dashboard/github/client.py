@@ -9,17 +9,18 @@ import httpx
 from gh_review_dashboard.config import AppConfig, QueryGroupConfig, QueryGroupType
 from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkError
 from gh_review_dashboard.github.queries import (
-    BRANCH_REFS_QUERY,
     DEFAULT_PAGE_SIZE,
     PR_SEARCH_QUERY,
+    build_branch_verification_query,
     build_search_query,
 )
 from gh_review_dashboard.models import (
     CandidateBranch,
     PullRequest,
     QueryGroupResult,
-    parse_refs_results,
+    parse_branch_verification,
     parse_search_results,
+    parse_user_events,
 )
 
 
@@ -104,6 +105,45 @@ class GitHubClient:
             pull_requests=all_prs,
         )
 
+    async def _fetch_user_events(self, username: str) -> list[dict]:
+        """Fetch recent user events from the REST API (up to 3 pages)."""
+        all_events: list[dict] = []
+        for page in range(1, 4):
+            url = f"/users/{username}/events?per_page=100&page={page}"
+            try:
+                response = await self._client.get(url)
+            except httpx.TimeoutException as e:
+                raise NetworkError(f"Request timed out: {e}") from e
+            except httpx.RequestError as e:
+                raise NetworkError(f"Network error: {e}") from e
+
+            if response.status_code == 401:
+                raise AuthError(
+                    "GitHub token is invalid or expired. "
+                    "Run 'gh auth login' to re-authenticate."
+                )
+            if response.status_code == 403:
+                raise GitHubAPIError(
+                    "GitHub API rate limit exceeded or insufficient permissions"
+                )
+            response.raise_for_status()
+
+            events = response.json()
+            if not events:
+                break
+            all_events.extend(events)
+
+            # Stop early if oldest event on this page is older than 7 days
+            from datetime import UTC, datetime, timedelta
+
+            oldest_str = events[-1].get("created_at", "")
+            if oldest_str:
+                oldest = datetime.fromisoformat(oldest_str.replace("Z", "+00:00"))
+                if oldest < datetime.now(UTC) - timedelta(days=7):
+                    break
+
+        return all_events
+
     async def fetch_candidate_branches(
         self, config: AppConfig, group: QueryGroupConfig
     ) -> QueryGroupResult:
@@ -114,24 +154,25 @@ class GitHubClient:
                 group_type=group.type.value,
             )
 
-        all_branches: list[CandidateBranch] = []
-        for repo_slug in config.repos:
-            owner, name = repo_slug.split("/", 1)
-            data = await self.execute_query(
-                BRANCH_REFS_QUERY, {"owner": owner, "name": name}
+        # Phase 1: Discover branches from user events
+        events = await self._fetch_user_events(config.username)
+        repo_branches = parse_user_events(events, config.repos)
+
+        if not repo_branches:
+            return QueryGroupResult(
+                group_name=group.name,
+                group_type=group.type.value,
             )
-            repository = data.get("data", {}).get("repository", {})  # type: ignore[union-attr]
-            default_ref = repository.get("defaultBranchRef") or {}
-            default_branch = default_ref.get("name", "main")
-            branches = parse_refs_results(
-                data, config.username, owner, name, default_branch  # type: ignore[arg-type]
-            )
-            all_branches.extend(branches)
+
+        # Phase 2: Verify branches via batched GraphQL
+        query, variables, alias_map = build_branch_verification_query(repo_branches)
+        data = await self.execute_query(query, variables)
+        branches = parse_branch_verification(data, alias_map)  # type: ignore[arg-type]
 
         return QueryGroupResult(
             group_name=group.name,
             group_type=group.type.value,
-            branches=all_branches,
+            branches=branches,
         )
 
     async def _fetch_for_group(

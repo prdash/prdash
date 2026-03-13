@@ -13,9 +13,10 @@ from gh_review_dashboard.models import (
     TimelineEvent,
     _format_age,
     deduplicate_groups,
+    parse_branch_verification,
     parse_pr_node,
-    parse_refs_results,
     parse_search_results,
+    parse_user_events,
 )
 
 
@@ -502,92 +503,195 @@ class TestCandidateBranch:
         assert branch.age_display == "3h"
 
 
-# --- parse_refs_results ---
+# --- parse_user_events ---
 
 
-class TestParseRefsResults:
-    def _make_refs_data(self, nodes: list[dict], default_branch: str = "main") -> dict:
-        return {
+class TestParseUserEvents:
+    def test_push_event_extraction(self) -> None:
+        events = [
+            {
+                "type": "PushEvent",
+                "repo": {"name": "org/repo"},
+                "payload": {"ref": "refs/heads/feat/test"},
+            }
+        ]
+        result = parse_user_events(events, ["org/repo"])
+        assert result == {"org/repo": {"feat/test"}}
+
+    def test_create_event_extraction(self) -> None:
+        events = [
+            {
+                "type": "CreateEvent",
+                "repo": {"name": "org/repo"},
+                "payload": {"ref_type": "branch", "ref": "my-branch"},
+            }
+        ]
+        result = parse_user_events(events, ["org/repo"])
+        assert result == {"org/repo": {"my-branch"}}
+
+    def test_repo_filtering(self) -> None:
+        events = [
+            {
+                "type": "PushEvent",
+                "repo": {"name": "org/repo"},
+                "payload": {"ref": "refs/heads/feat/a"},
+            },
+            {
+                "type": "PushEvent",
+                "repo": {"name": "other/repo"},
+                "payload": {"ref": "refs/heads/feat/b"},
+            },
+        ]
+        result = parse_user_events(events, ["org/repo"])
+        assert "org/repo" in result
+        assert "other/repo" not in result
+
+    def test_deduplication(self) -> None:
+        events = [
+            {
+                "type": "PushEvent",
+                "repo": {"name": "org/repo"},
+                "payload": {"ref": "refs/heads/feat/a"},
+            },
+            {
+                "type": "PushEvent",
+                "repo": {"name": "org/repo"},
+                "payload": {"ref": "refs/heads/feat/a"},
+            },
+        ]
+        result = parse_user_events(events, ["org/repo"])
+        assert result == {"org/repo": {"feat/a"}}
+
+    def test_non_branch_events_ignored(self) -> None:
+        events = [
+            {
+                "type": "WatchEvent",
+                "repo": {"name": "org/repo"},
+                "payload": {},
+            },
+            {
+                "type": "CreateEvent",
+                "repo": {"name": "org/repo"},
+                "payload": {"ref_type": "tag", "ref": "v1.0"},
+            },
+        ]
+        result = parse_user_events(events, ["org/repo"])
+        assert result == {}
+
+    def test_empty_events(self) -> None:
+        result = parse_user_events([], ["org/repo"])
+        assert result == {}
+
+    def test_empty_repos_allows_all(self) -> None:
+        events = [
+            {
+                "type": "PushEvent",
+                "repo": {"name": "any/repo"},
+                "payload": {"ref": "refs/heads/feat/x"},
+            },
+        ]
+        result = parse_user_events(events, [])
+        assert result == {"any/repo": {"feat/x"}}
+
+
+# --- parse_branch_verification ---
+
+
+class TestParseBranchVerification:
+    def _make_verification_data(
+        self,
+        repo_alias: str = "r0",
+        branch_alias: str = "b0_0",
+        branch_name: str = "feat/test",
+        committed_date: str | None = None,
+        open_prs: int = 0,
+        default_branch: str = "main",
+        ref_is_null: bool = False,
+    ) -> tuple[dict, list[tuple[str, str, str, str]]]:
+        if committed_date is None:
+            committed_date = datetime.now(UTC).isoformat()
+        alias_map = [(repo_alias, branch_alias, "org/repo", branch_name)]
+        ref_data: dict | None = {
+            "name": branch_name,
+            "target": {"committedDate": committed_date},
+            "associatedPullRequests": {"totalCount": open_prs},
+        }
+        if ref_is_null:
+            ref_data = None
+        data = {
             "data": {
-                "repository": {
+                repo_alias: {
                     "defaultBranchRef": {"name": default_branch},
-                    "refs": {"nodes": nodes},
+                    branch_alias: ref_data,
                 }
             }
         }
+        return data, alias_map
 
-    def _make_ref_node(
-        self,
-        name: str = "feat/test",
-        login: str = "testuser",
-        committed_date: str | None = None,
-        open_prs: int = 0,
-        author_user: dict | None = None,
-    ) -> dict:
-        if committed_date is None:
-            committed_date = datetime.now(UTC).isoformat()
-        if author_user is None:
-            author_user = {"login": login}
-        return {
-            "name": name,
-            "target": {
-                "committedDate": committed_date,
-                "author": {"user": author_user},
-            },
-            "associatedPullRequests": {"totalCount": open_prs},
-        }
-
-    def test_basic_candidate(self) -> None:
-        node = self._make_ref_node(name="feat/test", login="testuser")
-        data = self._make_refs_data([node])
-        result = parse_refs_results(data, "testuser", "org", "repo", "main")
+    def test_basic_success(self) -> None:
+        data, alias_map = self._make_verification_data()
+        result = parse_branch_verification(data, alias_map)
         assert len(result) == 1
         assert result[0].name == "feat/test"
         assert result[0].repo_slug == "org/repo"
         assert "feat%2Ftest" in result[0].compare_url
 
-    def test_filters_by_username(self) -> None:
-        node = self._make_ref_node(login="otheruser")
-        data = self._make_refs_data([node])
-        result = parse_refs_results(data, "testuser", "org", "repo", "main")
+    def test_null_ref_skipped(self) -> None:
+        data, alias_map = self._make_verification_data(ref_is_null=True)
+        result = parse_branch_verification(data, alias_map)
         assert result == []
 
-    def test_excludes_default_branch(self) -> None:
-        node = self._make_ref_node(name="main")
-        data = self._make_refs_data([node])
-        result = parse_refs_results(data, "testuser", "org", "repo", "main")
+    def test_open_pr_skipped(self) -> None:
+        data, alias_map = self._make_verification_data(open_prs=1)
+        result = parse_branch_verification(data, alias_map)
         assert result == []
 
-    def test_excludes_branches_with_open_prs(self) -> None:
-        node = self._make_ref_node(open_prs=1)
-        data = self._make_refs_data([node])
-        result = parse_refs_results(data, "testuser", "org", "repo", "main")
-        assert result == []
-
-    def test_excludes_old_branches(self) -> None:
+    def test_old_branch_skipped(self) -> None:
         old_date = (datetime.now(UTC) - timedelta(days=10)).isoformat()
-        node = self._make_ref_node(committed_date=old_date)
-        data = self._make_refs_data([node])
-        result = parse_refs_results(data, "testuser", "org", "repo", "main")
+        data, alias_map = self._make_verification_data(committed_date=old_date)
+        result = parse_branch_verification(data, alias_map)
         assert result == []
 
-    def test_url_encodes_slashes(self) -> None:
-        node = self._make_ref_node(name="feature/foo/bar")
-        data = self._make_refs_data([node])
-        result = parse_refs_results(data, "testuser", "org", "repo", "main")
+    def test_default_branch_skipped(self) -> None:
+        data, alias_map = self._make_verification_data(
+            branch_name="main", default_branch="main"
+        )
+        result = parse_branch_verification(data, alias_map)
+        assert result == []
+
+    def test_url_encoding(self) -> None:
+        data, alias_map = self._make_verification_data(branch_name="feature/foo/bar")
+        result = parse_branch_verification(data, alias_map)
         assert len(result) == 1
         assert "feature%2Ffoo%2Fbar" in result[0].compare_url
 
-    def test_null_author_skipped(self) -> None:
-        node = self._make_ref_node()
-        node["target"]["author"]["user"] = None
-        data = self._make_refs_data([node])
-        result = parse_refs_results(data, "testuser", "org", "repo", "main")
-        assert result == []
-
-    def test_null_author_object_skipped(self) -> None:
-        node = self._make_ref_node()
-        node["target"]["author"] = None
-        data = self._make_refs_data([node])
-        result = parse_refs_results(data, "testuser", "org", "repo", "main")
-        assert result == []
+    def test_multiple_repos(self) -> None:
+        recent = datetime.now(UTC).isoformat()
+        alias_map = [
+            ("r0", "b0_0", "org/repo1", "feat/a"),
+            ("r1", "b1_0", "org/repo2", "feat/b"),
+        ]
+        data = {
+            "data": {
+                "r0": {
+                    "defaultBranchRef": {"name": "main"},
+                    "b0_0": {
+                        "name": "feat/a",
+                        "target": {"committedDate": recent},
+                        "associatedPullRequests": {"totalCount": 0},
+                    },
+                },
+                "r1": {
+                    "defaultBranchRef": {"name": "main"},
+                    "b1_0": {
+                        "name": "feat/b",
+                        "target": {"committedDate": recent},
+                        "associatedPullRequests": {"totalCount": 0},
+                    },
+                },
+            }
+        }
+        result = parse_branch_verification(data, alias_map)
+        assert len(result) == 2
+        names = {b.name for b in result}
+        assert names == {"feat/a", "feat/b"}

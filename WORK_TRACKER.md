@@ -93,8 +93,9 @@ Depends on Phase 2 (T02, T04), Phase 3 (T06, T07), Phase 6 (T15, T17).
 | ID | Task | Dependencies | Status |
 |---|---|---|---|
 | T24 | CLI entry point (`ghrd` command via `[project.scripts]`, global install via `uv tool install`) | T01 | completed |
-| T31 | CLI distribution flags (`--version`, `--update` with install-method detection, end-user install docs) | T24 | not started |
+| T31 | CLI distribution flags (`--version`, `--update` with install-method detection, end-user install docs) | T24 | completed |
 | T32 | Homebrew tap distribution (formula, release workflow, tap repo setup, docs) | T31 | not started |
+| T33 | Dynamic versioning via git tags (hatch-vcs, no manual version bumps, tag-based releases) | T31 | not started |
 
 ## Phase 10: PR List Polish
 
@@ -115,6 +116,7 @@ Depends on Phase 2 (T04), Phase 3 (T06, T07).
 | ID | Task | Dependencies | Status |
 |---|---|---|---|
 | T30 | "Ready to PR" branch detection (detect user's recent branches without open PRs, display as query group, Enter opens GitHub new-PR page) | T04, T06, T07 | completed |
+| T34 | Fix "Ready to PR" for large repos (replace bulk refs query with Events API + GraphQL batch verification) | T30 | completed |
 
 ## Feature Coverage
 

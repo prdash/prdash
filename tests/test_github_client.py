@@ -60,33 +60,40 @@ def _minimal_pr_node(pr_id: str = "PR_1", number: int = 1, title: str = "Test PR
 # --- TestBuildSearchQuery ---
 
 
-def _branch_refs_response(
-    nodes: list[dict], default_branch: str = "main"
+def _make_push_event(
+    repo: str, branch: str, created_at: str = "2026-03-12T10:00:00Z"
 ) -> dict:
     return {
-        "data": {
-            "repository": {
-                "defaultBranchRef": {"name": default_branch},
-                "refs": {"nodes": nodes},
+        "type": "PushEvent",
+        "repo": {"name": repo},
+        "payload": {"ref": f"refs/heads/{branch}"},
+        "created_at": created_at,
+    }
+
+
+def _events_response(events: list[dict]) -> list[dict]:
+    return events
+
+
+def _branch_verification_response(
+    repo_branches: dict[str, list[tuple[str, str, int]]],
+    default_branch: str = "main",
+) -> dict:
+    """Build a GraphQL response for branch verification.
+
+    repo_branches: {repo_alias: [(branch_alias, committed_date, open_pr_count), ...]}
+    """
+    data: dict[str, dict] = {}
+    for repo_alias, branches in repo_branches.items():
+        repo_data: dict[str, object] = {"defaultBranchRef": {"name": default_branch}}
+        for branch_alias, committed_date, open_prs in branches:
+            repo_data[branch_alias] = {
+                "name": branch_alias.replace("b", "feat/"),  # placeholder name
+                "target": {"committedDate": committed_date},
+                "associatedPullRequests": {"totalCount": open_prs},
             }
-        }
-    }
-
-
-def _make_ref_node(
-    name: str = "feat/test",
-    login: str = "testuser",
-    committed_date: str = "2026-03-11T10:00:00Z",
-    open_prs: int = 0,
-) -> dict:
-    return {
-        "name": name,
-        "target": {
-            "committedDate": committed_date,
-            "author": {"user": {"login": login}},
-        },
-        "associatedPullRequests": {"totalCount": open_prs},
-    }
+        data[repo_alias] = repo_data
+    return {"data": data}
 
 
 class TestBuildSearchQuery:
@@ -452,10 +459,29 @@ class TestFetchCandidateBranches:
     async def test_single_repo(self) -> None:
         from datetime import UTC, datetime
         recent = datetime.now(UTC).isoformat()
+        # Mock REST events endpoint
+        respx.get(url__regex=r".*/users/.*/events.*").mock(
+            side_effect=[
+                httpx.Response(200, json=_events_response([
+                    _make_push_event("myorg/myrepo", "feat/test"),
+                ])),
+                httpx.Response(200, json=[]),  # page 2 empty
+            ]
+        )
+        # Mock GraphQL verification
         respx.post("https://api.github.com/graphql").mock(
-            return_value=httpx.Response(
-                200, json=_branch_refs_response([_make_ref_node(committed_date=recent)])
-            )
+            return_value=httpx.Response(200, json={
+                "data": {
+                    "r0": {
+                        "defaultBranchRef": {"name": "main"},
+                        "b0_0": {
+                            "name": "feat/test",
+                            "target": {"committedDate": recent},
+                            "associatedPullRequests": {"totalCount": 0},
+                        },
+                    }
+                }
+            })
         )
         config = _make_config()
         group = QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR")
@@ -471,11 +497,36 @@ class TestFetchCandidateBranches:
     async def test_multi_repo(self) -> None:
         from datetime import UTC, datetime
         recent = datetime.now(UTC).isoformat()
-        respx.post("https://api.github.com/graphql").mock(
+        respx.get(url__regex=r".*/users/.*/events.*").mock(
             side_effect=[
-                httpx.Response(200, json=_branch_refs_response([_make_ref_node(name="feat/a", committed_date=recent)])),
-                httpx.Response(200, json=_branch_refs_response([_make_ref_node(name="feat/b", committed_date=recent)])),
+                httpx.Response(200, json=_events_response([
+                    _make_push_event("org/repo1", "feat/a"),
+                    _make_push_event("org/repo2", "feat/b"),
+                ])),
+                httpx.Response(200, json=[]),
             ]
+        )
+        respx.post("https://api.github.com/graphql").mock(
+            return_value=httpx.Response(200, json={
+                "data": {
+                    "r0": {
+                        "defaultBranchRef": {"name": "main"},
+                        "b0_0": {
+                            "name": "feat/a",
+                            "target": {"committedDate": recent},
+                            "associatedPullRequests": {"totalCount": 0},
+                        },
+                    },
+                    "r1": {
+                        "defaultBranchRef": {"name": "main"},
+                        "b1_0": {
+                            "name": "feat/b",
+                            "target": {"committedDate": recent},
+                            "associatedPullRequests": {"totalCount": 0},
+                        },
+                    },
+                }
+            })
         )
         config = _make_config(repos=["org/repo1", "org/repo2"])
         group = QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR")
@@ -493,6 +544,82 @@ class TestFetchCandidateBranches:
             result = await client.fetch_candidate_branches(config, group)
         assert result.branches == []
 
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_no_events(self) -> None:
+        respx.get(url__regex=r".*/users/.*/events.*").mock(
+            return_value=httpx.Response(200, json=[])
+        )
+        config = _make_config()
+        group = QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR")
+        async with httpx.AsyncClient(base_url="https://api.github.com") as http:
+            client = GitHubClient(http)
+            result = await client.fetch_candidate_branches(config, group)
+        assert result.branches == []
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_deleted_branch(self) -> None:
+        """Branch in events but null ref in GraphQL (deleted)."""
+        respx.get(url__regex=r".*/users/.*/events.*").mock(
+            side_effect=[
+                httpx.Response(200, json=_events_response([
+                    _make_push_event("myorg/myrepo", "feat/deleted"),
+                ])),
+                httpx.Response(200, json=[]),
+            ]
+        )
+        respx.post("https://api.github.com/graphql").mock(
+            return_value=httpx.Response(200, json={
+                "data": {
+                    "r0": {
+                        "defaultBranchRef": {"name": "main"},
+                        "b0_0": None,  # deleted
+                    }
+                }
+            })
+        )
+        config = _make_config()
+        group = QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR")
+        async with httpx.AsyncClient(base_url="https://api.github.com") as http:
+            client = GitHubClient(http)
+            result = await client.fetch_candidate_branches(config, group)
+        assert result.branches == []
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_branch_with_open_pr(self) -> None:
+        from datetime import UTC, datetime
+        recent = datetime.now(UTC).isoformat()
+        respx.get(url__regex=r".*/users/.*/events.*").mock(
+            side_effect=[
+                httpx.Response(200, json=_events_response([
+                    _make_push_event("myorg/myrepo", "feat/has-pr"),
+                ])),
+                httpx.Response(200, json=[]),
+            ]
+        )
+        respx.post("https://api.github.com/graphql").mock(
+            return_value=httpx.Response(200, json={
+                "data": {
+                    "r0": {
+                        "defaultBranchRef": {"name": "main"},
+                        "b0_0": {
+                            "name": "feat/has-pr",
+                            "target": {"committedDate": recent},
+                            "associatedPullRequests": {"totalCount": 1},
+                        },
+                    }
+                }
+            })
+        )
+        config = _make_config()
+        group = QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR")
+        async with httpx.AsyncClient(base_url="https://api.github.com") as http:
+            client = GitHubClient(http)
+            result = await client.fetch_candidate_branches(config, group)
+        assert result.branches == []
+
 
 # --- TestFetchAllGroupsWithBranches ---
 
@@ -503,10 +630,31 @@ class TestFetchAllGroupsWithBranches:
     async def test_dispatches_ready_to_pr(self) -> None:
         from datetime import UTC, datetime
         recent = datetime.now(UTC).isoformat()
+        # Mock REST events
+        respx.get(url__regex=r".*/users/.*/events.*").mock(
+            side_effect=[
+                httpx.Response(200, json=_events_response([
+                    _make_push_event("myorg/myrepo", "feat/test"),
+                ])),
+                httpx.Response(200, json=[]),
+            ]
+        )
+        # Mock GraphQL: first call for PR search, second for branch verification
         respx.post("https://api.github.com/graphql").mock(
             side_effect=[
                 httpx.Response(200, json=_graphql_response([_minimal_pr_node()])),
-                httpx.Response(200, json=_branch_refs_response([_make_ref_node(committed_date=recent)])),
+                httpx.Response(200, json={
+                    "data": {
+                        "r0": {
+                            "defaultBranchRef": {"name": "main"},
+                            "b0_0": {
+                                "name": "feat/test",
+                                "target": {"committedDate": recent},
+                                "associatedPullRequests": {"totalCount": 0},
+                            },
+                        }
+                    }
+                }),
             ]
         )
         config = _make_config(
@@ -520,7 +668,6 @@ class TestFetchAllGroupsWithBranches:
             results, errors = await client.fetch_all_groups(config)
         assert len(results) == 2
         assert len(errors) == 0
-        # One group has PRs, the other has branches
         pr_group = next(r for r in results if r.group_name == "Direct")
         branch_group = next(r for r in results if r.group_name == "Ready to PR")
         assert len(pr_group.pull_requests) == 1

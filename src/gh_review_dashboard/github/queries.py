@@ -63,33 +63,56 @@ query($searchQuery: String!, $first: Int!, $after: String) {
 """
 
 
-BRANCH_REFS_QUERY = """\
-query($owner: String!, $name: String!) {
-  repository(owner: $owner, name: $name) {
-    defaultBranchRef { name }
-    refs(
-      refPrefix: "refs/heads/"
-      first: 100
-      orderBy: {field: TAG_COMMIT_DATE, direction: DESC}
-    ) {
-      nodes {
-        name
-        target {
-          ... on Commit {
-            committedDate
-            author {
-              user { login }
-            }
-          }
-        }
-        associatedPullRequests(states: OPEN, first: 1) {
-          totalCount
-        }
-      }
-    }
-  }
-}
-"""
+def build_branch_verification_query(
+    repo_branches: dict[str, list[str]],
+) -> tuple[str, dict[str, str], list[tuple[str, str, str, str]]]:
+    """Build a batched GraphQL query to verify specific branches across repos.
+
+    Args:
+        repo_branches: Mapping of {repo_slug: [branch_names]}.
+
+    Returns:
+        (query_str, variables_dict, alias_map) where alias_map is a list of
+        (repo_alias, branch_alias, repo_slug, branch_name) tuples.
+    """
+    parts: list[str] = []
+    variables: dict[str, str] = {}
+    alias_map: list[tuple[str, str, str, str]] = []
+    var_defs: list[str] = []
+
+    for ri, (repo_slug, branches) in enumerate(repo_branches.items()):
+        owner, name = repo_slug.split("/", 1)
+        owner_var = f"owner{ri}"
+        name_var = f"name{ri}"
+        var_defs.append(f"${owner_var}: String!")
+        var_defs.append(f"${name_var}: String!")
+        variables[owner_var] = owner
+        variables[name_var] = name
+
+        repo_alias = f"r{ri}"
+        branch_parts: list[str] = [f"defaultBranchRef {{ name }}"]
+        for bi, branch in enumerate(branches):
+            # Sanitize: skip branches with characters that could break the query
+            if '"' in branch or "\\" in branch:
+                continue
+            branch_alias = f"b{ri}_{bi}"
+            alias_map.append((repo_alias, branch_alias, repo_slug, branch))
+            branch_parts.append(
+                f'{branch_alias}: ref(qualifiedName: "refs/heads/{branch}") {{\n'
+                f"  name\n"
+                f"  target {{ ... on Commit {{ committedDate }} }}\n"
+                f"  associatedPullRequests(states: OPEN, first: 1) {{ totalCount }}\n"
+                f"}}"
+            )
+
+        parts.append(
+            f"{repo_alias}: repository(owner: ${owner_var}, name: ${name_var}) {{\n"
+            + "\n".join(branch_parts)
+            + "\n}"
+        )
+
+    query = "query(" + ", ".join(var_defs) + ") {\n" + "\n".join(parts) + "\n}"
+    return query, variables, alias_map
 
 
 def build_search_query(config: AppConfig, group: QueryGroupConfig) -> list[str]:
