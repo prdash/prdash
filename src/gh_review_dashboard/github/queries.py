@@ -16,6 +16,7 @@ query($searchQuery: String!, $first: Int!, $after: String) {
         number
         title
         url
+        isDraft
         repository { nameWithOwner }
         createdAt
         body

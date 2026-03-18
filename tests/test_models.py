@@ -41,6 +41,19 @@ def _make_pr(**kwargs) -> PullRequest:
     return PullRequest(**defaults)
 
 
+# --- is_draft ---
+
+
+class TestPullRequestIsDraft:
+    def test_defaults_to_false(self) -> None:
+        pr = _make_pr()
+        assert pr.is_draft is False
+
+    def test_can_be_set_true(self) -> None:
+        pr = _make_pr(is_draft=True)
+        assert pr.is_draft is True
+
+
 # --- CI Status ---
 
 
@@ -294,6 +307,20 @@ class TestParsePrNode:
         )
         pr = parse_pr_node(node)
         assert pr.timeline_events[0].author == "ghost"
+
+    def test_is_draft_true(self) -> None:
+        pr = parse_pr_node(self._sample_node(isDraft=True))
+        assert pr.is_draft is True
+
+    def test_is_draft_false(self) -> None:
+        pr = parse_pr_node(self._sample_node(isDraft=False))
+        assert pr.is_draft is False
+
+    def test_is_draft_missing_defaults_false(self) -> None:
+        node = self._sample_node()
+        node.pop("isDraft", None)
+        pr = parse_pr_node(node)
+        assert pr.is_draft is False
 
     def test_reviewer_deduplication(self) -> None:
         """Latest review state should override pending request."""

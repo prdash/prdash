@@ -57,6 +57,7 @@ class PullRequest(BaseModel, frozen=True):
     url: str
     created_at: datetime
     repo_slug: str = ""
+    is_draft: bool = False
     body: str | None = None
     labels: list[str] = Field(default_factory=list)
     reviewers: list[Reviewer] = Field(default_factory=list)
@@ -292,6 +293,7 @@ def parse_pr_node(node: dict) -> PullRequest:
         url=node["url"],
         created_at=node["createdAt"],
         repo_slug=repo_slug,
+        is_draft=node.get("isDraft", False),
         body=node.get("body"),
         labels=labels,
         reviewers=_parse_reviewers(review_requests, reviews),

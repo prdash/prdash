@@ -82,7 +82,8 @@ class PRRow(ListItem):
         marker_text = "[bold]●[/bold]" if self.is_new else " "
         repo_prefix = f"[dim]{escape(self.pr.repo_slug)}[/dim]  " if self.pr.repo_slug else ""
         title_line = f"{repo_prefix}{escape(self.pr.title)}"
-        meta_line = f"[dim]@{escape(self.pr.author)} · {self.pr.age_display}[/dim] · {ci_label} · {review_label}"
+        draft_segment = " · [cyan]DRAFT[/cyan]" if self.pr.is_draft else ""
+        meta_line = f"[dim]@{escape(self.pr.author)} · {self.pr.age_display}[/dim]{draft_segment} · {ci_label} · {review_label}"
         classes = "pr-row-label pr-row-new" if self.is_new else "pr-row-label"
         if self.approved_by_me:
             classes += " pr-row-approved"

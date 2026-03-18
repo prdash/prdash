@@ -951,6 +951,68 @@ async def test_highlight_branch_row_posts_branch_selected():
         assert "feat/test" in content
 
 
+# --- Draft PR badge tests (T36) ---
+
+
+def _make_draft_pr(is_draft: bool = True) -> PullRequest:
+    from datetime import UTC, datetime, timedelta
+    return PullRequest(
+        id="PR_DRAFT",
+        number=50,
+        title="WIP: draft feature",
+        author="alice",
+        url="https://github.com/org/repo/pull/50",
+        created_at=datetime.now(UTC) - timedelta(hours=1),
+        is_draft=is_draft,
+    )
+
+
+@pytest.mark.asyncio
+async def test_draft_pr_row_renders_draft_badge():
+    """A draft PR should render a DRAFT badge in the metadata line."""
+    app = _make_app()
+    draft_pr = _make_draft_pr(is_draft=True)
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test",
+                group_type="test",
+                pull_requests=[draft_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert len(rows) == 1
+        from textual.widgets import Static
+        label_static = rows[0].query_one(".pr-row-label", Static)
+        assert "DRAFT" in str(label_static.content)
+
+
+@pytest.mark.asyncio
+async def test_non_draft_pr_row_no_draft_badge():
+    """A non-draft PR should not render a DRAFT badge."""
+    app = _make_app()
+    non_draft_pr = _make_draft_pr(is_draft=False)
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test",
+                group_type="test",
+                pull_requests=[non_draft_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert len(rows) == 1
+        from textual.widgets import Static
+        label_static = rows[0].query_one(".pr-row-label", Static)
+        assert "DRAFT" not in str(label_static.content)
+
+
 @pytest.mark.asyncio
 async def test_group_with_only_branches_not_auto_collapsed():
     """A group with branches but no PRs should not be auto-collapsed."""
