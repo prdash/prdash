@@ -109,6 +109,8 @@ Depends on Phase 3 (T06).
 | T28 | Group header focus highlight (subtle background tint when header row is focused) | T06 | completed |
 | T29 | Arrow key collapse/expand for group headers (left=collapse, right=expand) | T06, T08 | completed |
 | T36 | Draft PR badge — inline cyan DRAFT badge on PR list metadata line + detail pane indicator | T06, T07 | completed |
+| T37 | Fix CI:pend bug — treat NEUTRAL/SKIPPED as passing, CANCELLED/TIMED_OUT/etc. as failing | T06 | completed |
+| T38 | Green-highlight ready-to-merge PRs in "My PRs" using `mergeStateStatus` API field | T06, T07 | completed |
 
 ## Phase 11: Branch Detection
 

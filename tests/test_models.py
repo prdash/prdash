@@ -95,6 +95,121 @@ class TestPullRequestCiStatus:
         )
         assert pr.ci_status == "pending"
 
+    def test_neutral_plus_success_is_passing(self) -> None:
+        pr = _make_pr(
+            checks=[
+                CheckRun(name="build", status="COMPLETED", conclusion="SUCCESS"),
+                CheckRun(name="lint", status="COMPLETED", conclusion="NEUTRAL"),
+            ]
+        )
+        assert pr.ci_status == "passing"
+
+    def test_skipped_plus_success_is_passing(self) -> None:
+        pr = _make_pr(
+            checks=[
+                CheckRun(name="build", status="COMPLETED", conclusion="SUCCESS"),
+                CheckRun(name="optional", status="COMPLETED", conclusion="SKIPPED"),
+            ]
+        )
+        assert pr.ci_status == "passing"
+
+    def test_all_neutral_is_passing(self) -> None:
+        pr = _make_pr(
+            checks=[CheckRun(name="lint", status="COMPLETED", conclusion="NEUTRAL")]
+        )
+        assert pr.ci_status == "passing"
+
+    def test_all_skipped_is_passing(self) -> None:
+        pr = _make_pr(
+            checks=[CheckRun(name="opt", status="COMPLETED", conclusion="SKIPPED")]
+        )
+        assert pr.ci_status == "passing"
+
+    def test_cancelled_is_failing(self) -> None:
+        pr = _make_pr(
+            checks=[CheckRun(name="build", status="COMPLETED", conclusion="CANCELLED")]
+        )
+        assert pr.ci_status == "failing"
+
+    def test_timed_out_is_failing(self) -> None:
+        pr = _make_pr(
+            checks=[CheckRun(name="build", status="COMPLETED", conclusion="TIMED_OUT")]
+        )
+        assert pr.ci_status == "failing"
+
+    def test_action_required_is_failing(self) -> None:
+        pr = _make_pr(
+            checks=[CheckRun(name="build", status="COMPLETED", conclusion="ACTION_REQUIRED")]
+        )
+        assert pr.ci_status == "failing"
+
+    def test_stale_is_failing(self) -> None:
+        pr = _make_pr(
+            checks=[CheckRun(name="build", status="COMPLETED", conclusion="STALE")]
+        )
+        assert pr.ci_status == "failing"
+
+    def test_startup_failure_is_failing(self) -> None:
+        pr = _make_pr(
+            checks=[CheckRun(name="build", status="COMPLETED", conclusion="STARTUP_FAILURE")]
+        )
+        assert pr.ci_status == "failing"
+
+    def test_neutral_plus_in_progress_is_pending(self) -> None:
+        pr = _make_pr(
+            checks=[
+                CheckRun(name="lint", status="COMPLETED", conclusion="NEUTRAL"),
+                CheckRun(name="build", status="IN_PROGRESS", conclusion=None),
+            ]
+        )
+        assert pr.ci_status == "pending"
+
+    def test_failure_plus_neutral_is_failing(self) -> None:
+        pr = _make_pr(
+            checks=[
+                CheckRun(name="lint", status="COMPLETED", conclusion="NEUTRAL"),
+                CheckRun(name="build", status="COMPLETED", conclusion="FAILURE"),
+            ]
+        )
+        assert pr.ci_status == "failing"
+
+
+# --- Ready to Merge ---
+
+
+class TestPullRequestReadyToMerge:
+    def test_clean_is_ready(self) -> None:
+        pr = _make_pr(merge_state_status="CLEAN")
+        assert pr.ready_to_merge is True
+
+    def test_blocked_is_not_ready(self) -> None:
+        pr = _make_pr(merge_state_status="BLOCKED")
+        assert pr.ready_to_merge is False
+
+    def test_unknown_is_not_ready(self) -> None:
+        pr = _make_pr(merge_state_status="UNKNOWN")
+        assert pr.ready_to_merge is False
+
+    def test_behind_is_not_ready(self) -> None:
+        pr = _make_pr(merge_state_status="BEHIND")
+        assert pr.ready_to_merge is False
+
+    def test_unstable_is_not_ready(self) -> None:
+        pr = _make_pr(merge_state_status="UNSTABLE")
+        assert pr.ready_to_merge is False
+
+    def test_dirty_is_not_ready(self) -> None:
+        pr = _make_pr(merge_state_status="DIRTY")
+        assert pr.ready_to_merge is False
+
+    def test_draft_is_not_ready(self) -> None:
+        pr = _make_pr(merge_state_status="DRAFT")
+        assert pr.ready_to_merge is False
+
+    def test_default_is_not_ready(self) -> None:
+        pr = _make_pr()
+        assert pr.ready_to_merge is False
+
 
 # --- Review Status ---
 
@@ -321,6 +436,16 @@ class TestParsePrNode:
         node.pop("isDraft", None)
         pr = parse_pr_node(node)
         assert pr.is_draft is False
+
+    def test_merge_state_status_parsed(self) -> None:
+        pr = parse_pr_node(self._sample_node(mergeStateStatus="CLEAN"))
+        assert pr.merge_state_status == "CLEAN"
+
+    def test_merge_state_status_defaults_to_unknown(self) -> None:
+        node = self._sample_node()
+        node.pop("mergeStateStatus", None)
+        pr = parse_pr_node(node)
+        assert pr.merge_state_status == "UNKNOWN"
 
     def test_reviewer_deduplication(self) -> None:
         """Latest review state should override pending request."""

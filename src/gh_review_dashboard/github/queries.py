@@ -17,6 +17,7 @@ query($searchQuery: String!, $first: Int!, $after: String) {
         title
         url
         isDraft
+        mergeStateStatus
         repository { nameWithOwner }
         createdAt
         body

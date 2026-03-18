@@ -69,3 +69,7 @@ GroupHeaderItem.-highlight .group-header-label {
 .pr-row-approved {
     background: $success 15%;
 }
+
+.pr-row-ready-to-merge {
+    background: $success 15%;
+}

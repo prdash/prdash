@@ -1013,6 +1013,79 @@ async def test_non_draft_pr_row_no_draft_badge():
         assert "DRAFT" not in str(label_static.content)
 
 
+# --- Ready-to-merge highlight tests (T38) ---
+
+
+def _make_mergeable_pr(merge_state_status: str = "CLEAN") -> PullRequest:
+    from datetime import UTC, datetime, timedelta
+    return PullRequest(
+        id="PR_MERGE",
+        number=60,
+        title="Ready to merge PR",
+        author="alice",
+        url="https://github.com/org/repo/pull/60",
+        created_at=datetime.now(UTC) - timedelta(hours=1),
+        merge_state_status=merge_state_status,
+    )
+
+
+@pytest.mark.asyncio
+async def test_clean_pr_in_authored_group_gets_ready_to_merge_class():
+    """A CLEAN PR in an authored group should get pr-row-ready-to-merge class."""
+    app = _make_app()
+    pr = _make_mergeable_pr("CLEAN")
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(group_name="My PRs", group_type="authored", pull_requests=[pr]),
+        ])
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert rows[0].ready_to_merge is True
+        from textual.widgets import Static
+        label = rows[0].query_one(".pr-row-label", Static)
+        assert "pr-row-ready-to-merge" in label.classes
+
+
+@pytest.mark.asyncio
+async def test_clean_pr_in_non_authored_group_no_ready_class():
+    """A CLEAN PR in a non-authored group should NOT get pr-row-ready-to-merge class."""
+    app = _make_app()
+    pr = _make_mergeable_pr("CLEAN")
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(group_name="Review Requested", group_type="review_requested", pull_requests=[pr]),
+        ])
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert rows[0].ready_to_merge is False
+        from textual.widgets import Static
+        label = rows[0].query_one(".pr-row-label", Static)
+        assert "pr-row-ready-to-merge" not in label.classes
+
+
+@pytest.mark.asyncio
+async def test_blocked_pr_in_authored_group_no_ready_class():
+    """A BLOCKED PR in an authored group should NOT get pr-row-ready-to-merge class."""
+    app = _make_app()
+    pr = _make_mergeable_pr("BLOCKED")
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(group_name="My PRs", group_type="authored", pull_requests=[pr]),
+        ])
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert rows[0].ready_to_merge is False
+        from textual.widgets import Static
+        label = rows[0].query_one(".pr-row-label", Static)
+        assert "pr-row-ready-to-merge" not in label.classes
+
+
 @pytest.mark.asyncio
 async def test_group_with_only_branches_not_auto_collapsed():
     """A group with branches but no PRs should not be auto-collapsed."""

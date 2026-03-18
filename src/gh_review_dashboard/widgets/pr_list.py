@@ -70,10 +70,11 @@ class EmptyGroupItem(ListItem):
 class PRRow(ListItem):
     """A single PR row in the list."""
 
-    def __init__(self, pr: PullRequest, is_new: bool = False, approved_by_me: bool = False, **kwargs: object) -> None:
+    def __init__(self, pr: PullRequest, is_new: bool = False, approved_by_me: bool = False, ready_to_merge: bool = False, **kwargs: object) -> None:
         self.pr = pr
         self.is_new = is_new
         self.approved_by_me = approved_by_me
+        self.ready_to_merge = ready_to_merge
         super().__init__(**kwargs)
 
     def compose(self):
@@ -87,6 +88,8 @@ class PRRow(ListItem):
         classes = "pr-row-label pr-row-new" if self.is_new else "pr-row-label"
         if self.approved_by_me:
             classes += " pr-row-approved"
+        if self.ready_to_merge:
+            classes += " pr-row-ready-to-merge"
         with Horizontal(classes="pr-row-container"):
             yield Static(marker_text, classes="pr-row-marker")
             yield Static(f"{title_line}\n{meta_line}", classes=classes)
@@ -195,7 +198,8 @@ class PRListWidget(Widget):
                     for pr in prs:
                         is_new = bool(self._seen_ids) and pr.id not in self._seen_ids
                         approved_by_me = should_mark_approved and pr.is_approved_by(self._username)  # type: ignore[arg-type]
-                        items.append(PRRow(pr, is_new=is_new, approved_by_me=approved_by_me))
+                        ready_to_merge = group.group_type == "authored" and pr.ready_to_merge
+                        items.append(PRRow(pr, is_new=is_new, approved_by_me=approved_by_me, ready_to_merge=ready_to_merge))
                         item_ids.append(f"pr:{pr.id}")
                     for branch in group.branches:
                         items.append(BranchRow(branch))

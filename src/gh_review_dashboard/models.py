@@ -47,6 +47,12 @@ class TimelineEvent(BaseModel, frozen=True):
     body: str | None = None
 
 
+_CI_PASS_CONCLUSIONS = frozenset({"SUCCESS", "NEUTRAL", "SKIPPED"})
+_CI_FAIL_CONCLUSIONS = frozenset({
+    "FAILURE", "CANCELLED", "TIMED_OUT", "ACTION_REQUIRED", "STALE", "STARTUP_FAILURE",
+})
+
+
 class PullRequest(BaseModel, frozen=True):
     """A GitHub pull request with computed aggregate statuses."""
 
@@ -58,6 +64,7 @@ class PullRequest(BaseModel, frozen=True):
     created_at: datetime
     repo_slug: str = ""
     is_draft: bool = False
+    merge_state_status: str = "UNKNOWN"
     body: str | None = None
     labels: list[str] = Field(default_factory=list)
     reviewers: list[Reviewer] = Field(default_factory=list)
@@ -70,11 +77,17 @@ class PullRequest(BaseModel, frozen=True):
         """Aggregate CI status: 'passing', 'failing', 'pending', 'none'."""
         if not self.checks:
             return "none"
-        if any(c.conclusion == "FAILURE" for c in self.checks):
+        if any(c.conclusion in _CI_FAIL_CONCLUSIONS for c in self.checks):
             return "failing"
-        if all(c.conclusion == "SUCCESS" for c in self.checks):
+        if all(c.conclusion in _CI_PASS_CONCLUSIONS for c in self.checks):
             return "passing"
         return "pending"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def ready_to_merge(self) -> bool:
+        """Whether this PR is ready to merge (mergeStateStatus == CLEAN)."""
+        return self.merge_state_status == "CLEAN"
 
     @computed_field  # type: ignore[prop-decorator]
     @property
@@ -294,6 +307,7 @@ def parse_pr_node(node: dict) -> PullRequest:
         created_at=node["createdAt"],
         repo_slug=repo_slug,
         is_draft=node.get("isDraft", False),
+        merge_state_status=node.get("mergeStateStatus", "UNKNOWN"),
         body=node.get("body"),
         labels=labels,
         reviewers=_parse_reviewers(review_requests, reviews),
