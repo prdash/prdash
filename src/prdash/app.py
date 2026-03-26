@@ -8,7 +8,7 @@ from textual.widgets import Footer, Header
 from prdash.config import AppConfig
 from prdash.exceptions import AuthError, GitHubAPIError, NetworkError
 from prdash.github.client import GitHubClient
-from prdash.models import deduplicate_groups
+from prdash.models import deduplicate_groups, reclassify_review_groups
 from prdash.screens.settings import SettingsScreen
 from prdash.widgets import BranchSelected, DetailPaneWidget, PRListWidget, PRSelected
 
@@ -81,6 +81,7 @@ class ReviewDashboardApp(App):
             return
         try:
             groups, errors = await self.github_client.fetch_all_groups(self.config)
+            groups = reclassify_review_groups(groups, self.config.username)
             groups = deduplicate_groups(groups)
             pr_list = self.query_one(PRListWidget)
             pr_list.update_data(groups, seen_ids=self._seen_pr_ids, username=self.config.username)

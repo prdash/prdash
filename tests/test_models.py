@@ -24,6 +24,7 @@ from prdash.models import (
     parse_pr_node,
     parse_search_results,
     parse_user_events,
+    reclassify_review_groups,
 )
 
 
@@ -978,3 +979,135 @@ class TestParseCompareResponse:
         }
         result = parse_compare_response(data)
         assert result["commits"][0].message == "first line"
+
+
+# --- _parse_reviewers is_team ---
+
+
+class TestParseReviewersIsTeam:
+    def test_user_reviewer_is_not_team(self) -> None:
+        review_requests = [{"requestedReviewer": {"login": "alice"}}]
+        from prdash.models import _parse_reviewers
+        reviewers = _parse_reviewers(review_requests, [])
+        assert len(reviewers) == 1
+        assert reviewers[0].login == "alice"
+        assert reviewers[0].is_team is False
+        assert reviewers[0].state == "PENDING"
+
+    def test_team_reviewer_is_team(self) -> None:
+        review_requests = [{"requestedReviewer": {"slug": "frontend"}}]
+        from prdash.models import _parse_reviewers
+        reviewers = _parse_reviewers(review_requests, [])
+        assert len(reviewers) == 1
+        assert reviewers[0].login == "frontend"
+        assert reviewers[0].is_team is True
+
+    def test_mixed_user_and_team(self) -> None:
+        review_requests = [
+            {"requestedReviewer": {"login": "alice"}},
+            {"requestedReviewer": {"slug": "backend"}},
+        ]
+        from prdash.models import _parse_reviewers
+        reviewers = _parse_reviewers(review_requests, [])
+        by_login = {r.login: r for r in reviewers}
+        assert by_login["alice"].is_team is False
+        assert by_login["backend"].is_team is True
+
+    def test_review_overrides_pending_keeps_is_team_false(self) -> None:
+        review_requests = [{"requestedReviewer": {"login": "alice"}}]
+        reviews = [{"author": {"login": "alice"}, "state": "APPROVED"}]
+        from prdash.models import _parse_reviewers
+        reviewers = _parse_reviewers(review_requests, reviews)
+        assert len(reviewers) == 1
+        assert reviewers[0].state == "APPROVED"
+        assert reviewers[0].is_team is False
+
+    def test_team_entry_not_overwritten_by_user_review(self) -> None:
+        """Team slug and user login are disjoint keys."""
+        review_requests = [{"requestedReviewer": {"slug": "frontend"}}]
+        reviews = [{"author": {"login": "alice"}, "state": "APPROVED"}]
+        from prdash.models import _parse_reviewers
+        reviewers = _parse_reviewers(review_requests, reviews)
+        by_login = {r.login: r for r in reviewers}
+        assert by_login["frontend"].is_team is True
+        assert by_login["frontend"].state == "PENDING"
+        assert by_login["alice"].is_team is False
+        assert by_login["alice"].state == "APPROVED"
+
+
+# --- reclassify_review_groups ---
+
+
+class TestReclassifyReviewGroups:
+    def _make_pr_with_reviewers(
+        self, pr_id: str, reviewers: list[Reviewer],
+    ) -> PullRequest:
+        return _make_pr(id=pr_id, number=1, reviewers=reviewers)
+
+    def test_direct_request_stays_in_direct(self) -> None:
+        pr = self._make_pr_with_reviewers("PR_1", [
+            Reviewer(login="me", state="PENDING", is_team=False),
+        ])
+        groups = [
+            QueryGroupResult(group_name="Direct", group_type="direct_reviewer", pull_requests=[pr]),
+            QueryGroupResult(group_name="Team", group_type="team_reviewer", pull_requests=[]),
+        ]
+        result = reclassify_review_groups(groups, "me")
+        assert [p.id for p in result[0].pull_requests] == ["PR_1"]
+        assert result[1].pull_requests == []
+
+    def test_team_only_moves_to_team(self) -> None:
+        pr = self._make_pr_with_reviewers("PR_1", [
+            Reviewer(login="frontend", state="PENDING", is_team=True),
+        ])
+        groups = [
+            QueryGroupResult(group_name="Direct", group_type="direct_reviewer", pull_requests=[pr]),
+            QueryGroupResult(group_name="Team", group_type="team_reviewer", pull_requests=[]),
+        ]
+        result = reclassify_review_groups(groups, "me")
+        assert result[0].pull_requests == []
+        assert [p.id for p in result[1].pull_requests] == ["PR_1"]
+
+    def test_both_direct_and_team_stays_in_direct(self) -> None:
+        pr = self._make_pr_with_reviewers("PR_1", [
+            Reviewer(login="me", state="PENDING", is_team=False),
+            Reviewer(login="frontend", state="PENDING", is_team=True),
+        ])
+        groups = [
+            QueryGroupResult(group_name="Direct", group_type="direct_reviewer", pull_requests=[pr]),
+            QueryGroupResult(group_name="Team", group_type="team_reviewer", pull_requests=[]),
+        ]
+        result = reclassify_review_groups(groups, "me")
+        assert [p.id for p in result[0].pull_requests] == ["PR_1"]
+        assert result[1].pull_requests == []
+
+    def test_moved_pr_deduped_against_existing_team(self) -> None:
+        pr = self._make_pr_with_reviewers("PR_1", [
+            Reviewer(login="frontend", state="PENDING", is_team=True),
+        ])
+        groups = [
+            QueryGroupResult(group_name="Direct", group_type="direct_reviewer", pull_requests=[pr]),
+            QueryGroupResult(group_name="Team", group_type="team_reviewer", pull_requests=[pr]),
+        ]
+        result = reclassify_review_groups(groups, "me")
+        assert result[0].pull_requests == []
+        # Should not duplicate
+        assert len(result[1].pull_requests) == 1
+
+    def test_no_team_group_skips_reclassification(self) -> None:
+        pr = self._make_pr_with_reviewers("PR_1", [
+            Reviewer(login="frontend", state="PENDING", is_team=True),
+        ])
+        groups = [
+            QueryGroupResult(group_name="Direct", group_type="direct_reviewer", pull_requests=[pr]),
+        ]
+        result = reclassify_review_groups(groups, "me")
+        # PR stays in direct since there's nowhere to move it
+        assert [p.id for p in result[0].pull_requests] == ["PR_1"]
+
+    def test_no_direct_group_skips_reclassification(self) -> None:
+        groups = [
+            QueryGroupResult(group_name="Team", group_type="team_reviewer", pull_requests=[]),
+        ]
+        result = reclassify_review_groups(groups, "me")
+        assert len(result) == 1

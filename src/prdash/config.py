@@ -24,6 +24,7 @@ class QueryGroupType(str, Enum):
     TEAM_REVIEWER = "team_reviewer"
     MENTIONED = "mentioned"
     AUTHORED = "authored"
+    ASSIGNED = "assigned"
     LABEL = "label"
     READY_TO_PR = "ready_to_pr"
 
@@ -44,14 +45,15 @@ class QueryGroupConfig(BaseModel):
 
 
 DEFAULT_QUERY_GROUPS: list[QueryGroupConfig] = [
+    QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR"),
     QueryGroupConfig(type=QueryGroupType.AUTHORED, name="My PRs"),
-    QueryGroupConfig(type=QueryGroupType.MENTIONED, name="Mentioned/Involved"),
     QueryGroupConfig(type=QueryGroupType.DIRECT_REVIEWER, name="Requested Reviewer"),
     QueryGroupConfig(type=QueryGroupType.TEAM_REVIEWER, name="Team Reviewer"),
+    QueryGroupConfig(type=QueryGroupType.ASSIGNED, name="Assigned to Me"),
+    QueryGroupConfig(type=QueryGroupType.MENTIONED, name="Mentioned/Involved"),
     QueryGroupConfig(
         type=QueryGroupType.LABEL, name="Labeled", labels=[], enabled=False
     ),
-    QueryGroupConfig(type=QueryGroupType.READY_TO_PR, name="Ready to PR"),
 ]
 
 

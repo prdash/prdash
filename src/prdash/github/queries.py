@@ -144,6 +144,8 @@ def build_search_query(config: AppConfig, group: QueryGroupConfig) -> list[str]:
             return [f"{p} involves:{config.username}" for p in prefixes]
         case QueryGroupType.AUTHORED:
             return [f"{p} author:{config.username}" for p in prefixes]
+        case QueryGroupType.ASSIGNED:
+            return [f"{p} assignee:{config.username}" for p in prefixes]
         case QueryGroupType.LABEL:
             return [f'{p} label:"{label}"' for p in prefixes for label in group.labels]
         case QueryGroupType.READY_TO_PR:

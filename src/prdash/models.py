@@ -28,6 +28,7 @@ class Reviewer(BaseModel, frozen=True):
 
     login: str
     state: str  # APPROVED, CHANGES_REQUESTED, PENDING, COMMENTED, DISMISSED
+    is_team: bool = False
 
 
 class CheckRun(BaseModel, frozen=True):
@@ -182,6 +183,60 @@ def deduplicate_groups(groups: list[QueryGroupResult]) -> list[QueryGroupResult]
     return deduped
 
 
+def reclassify_review_groups(
+    groups: list[QueryGroupResult], username: str
+) -> list[QueryGroupResult]:
+    """Move PRs from direct_reviewer to team_reviewer when user isn't individually requested."""
+    from prdash.config import QueryGroupType
+
+    direct_idx: int | None = None
+    team_idx: int | None = None
+    for i, g in enumerate(groups):
+        if g.group_type == QueryGroupType.DIRECT_REVIEWER.value:
+            direct_idx = i
+        elif g.group_type == QueryGroupType.TEAM_REVIEWER.value:
+            team_idx = i
+
+    if direct_idx is None or team_idx is None:
+        return groups
+
+    direct_group = groups[direct_idx]
+    team_group = groups[team_idx]
+
+    keep_direct: list[PullRequest] = []
+    move_to_team: list[PullRequest] = []
+
+    for pr in direct_group.pull_requests:
+        has_direct_request = any(
+            r.login == username and not r.is_team for r in pr.reviewers
+        )
+        if has_direct_request:
+            keep_direct.append(pr)
+        else:
+            move_to_team.append(pr)
+
+    # Deduplicate moved PRs against existing team group PRs
+    existing_team_ids = {pr.id for pr in team_group.pull_requests}
+    new_team_prs = team_group.pull_requests + [
+        pr for pr in move_to_team if pr.id not in existing_team_ids
+    ]
+
+    result = list(groups)
+    result[direct_idx] = QueryGroupResult(
+        group_name=direct_group.group_name,
+        group_type=direct_group.group_type,
+        pull_requests=keep_direct,
+        branches=direct_group.branches,
+    )
+    result[team_idx] = QueryGroupResult(
+        group_name=team_group.group_name,
+        group_type=team_group.group_type,
+        pull_requests=new_team_prs,
+        branches=team_group.branches,
+    )
+    return result
+
+
 # --- Response parsers ---
 
 
@@ -189,24 +244,31 @@ def _parse_reviewers(
     review_requests: list[dict], reviews: list[dict]
 ) -> list[Reviewer]:
     """Merge review requests (PENDING) with actual reviews, deduplicate by login."""
-    reviewer_map: dict[str, str] = {}
+    # Maps login -> (state, is_team)
+    reviewer_map: dict[str, tuple[str, bool]] = {}
 
-    # Review requests are PENDING
+    # Review requests are PENDING; distinguish User (login) vs Team (slug)
     for node in review_requests:
         requested = node.get("requestedReviewer") or {}
-        login = requested.get("login") or requested.get("slug")
-        if login:
-            reviewer_map[login] = "PENDING"
+        user_login = requested.get("login")
+        team_slug = requested.get("slug")
+        if user_login:
+            reviewer_map[user_login] = ("PENDING", False)
+        elif team_slug:
+            reviewer_map[team_slug] = ("PENDING", True)
 
-    # Actual reviews override pending state; keep latest per reviewer
+    # Actual reviews override pending state; only users submit reviews (is_team=False).
+    # Team slugs and user logins are disjoint keys, so this won't overwrite team entries.
     for node in reviews:
         author = node.get("author") or {}
         login = author.get("login")
         state = node.get("state")
         if login and state:
-            reviewer_map[login] = state
+            reviewer_map[login] = (state, False)
 
-    return [Reviewer(login=k, state=v) for k, v in reviewer_map.items()]
+    return [
+        Reviewer(login=k, state=s, is_team=t) for k, (s, t) in reviewer_map.items()
+    ]
 
 
 def _parse_checks(commit_nodes: list[dict]) -> list[CheckRun]:

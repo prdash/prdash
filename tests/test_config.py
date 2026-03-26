@@ -71,9 +71,10 @@ class TestLoadConfigHappyPath:
         assert config.repos == []
         assert config.poll_interval == 300
         assert config.team_slugs == []
-        assert len(config.query_groups) == 6
+        assert len(config.query_groups) == 7
         group_types = [g.type for g in config.query_groups]
         assert QueryGroupType.DIRECT_REVIEWER in group_types
+        assert QueryGroupType.ASSIGNED in group_types
         assert QueryGroupType.LABEL in group_types
         assert QueryGroupType.READY_TO_PR in group_types
 
@@ -350,10 +351,10 @@ class TestReadyToPrConfig:
     def test_ready_to_pr_enum_exists(self) -> None:
         assert QueryGroupType.READY_TO_PR == "ready_to_pr"
 
-    def test_default_groups_include_ready_to_pr_last(self) -> None:
+    def test_default_groups_include_ready_to_pr_first(self) -> None:
         from prdash.config import DEFAULT_QUERY_GROUPS
-        assert DEFAULT_QUERY_GROUPS[-1].type == QueryGroupType.READY_TO_PR
-        assert DEFAULT_QUERY_GROUPS[-1].name == "Ready to PR"
+        assert DEFAULT_QUERY_GROUPS[0].type == QueryGroupType.READY_TO_PR
+        assert DEFAULT_QUERY_GROUPS[0].name == "Ready to PR"
 
     def test_round_trip_ready_to_pr(self, tmp_path: Path) -> None:
         groups = [
