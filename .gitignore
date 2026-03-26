@@ -3,3 +3,4 @@ __pycache__/
 .venv/
 dist/
 *.egg-info/
+src/prdash/_version.py

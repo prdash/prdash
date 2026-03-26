@@ -10,15 +10,14 @@ Terminal-based TUI dashboard for monitoring GitHub pull requests that need your 
 
 ## Installation
 
-### From source (development)
+### Homebrew (macOS)
 
 ```bash
-git clone https://github.com/your-org/prdash.git
-cd prdash
-uv sync
+brew tap prdash/prdash
+brew install prdash
 ```
 
-### Global install
+### From PyPI
 
 ```bash
 # Using uv (recommended)
@@ -31,15 +30,21 @@ pipx install prdash
 pip install prdash
 ```
 
-This makes the `prdash` command available globally.
+### From source (development)
 
-To update to the latest version:
+```bash
+git clone https://github.com/prdash/prdash.git
+cd prdash
+uv sync
+```
+
+### Updating
 
 ```bash
 prdash --update
 ```
 
-This auto-detects your install method (uv/pipx/pip) and runs the appropriate upgrade command.
+This auto-detects your install method (Homebrew/uv/pipx/pip) and runs the appropriate upgrade command.
 
 ## Quick Start
 

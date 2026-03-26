@@ -17,13 +17,23 @@ def get_version() -> str:
 
 
 class InstallMethod(Enum):
+    HOMEBREW = "homebrew"
     UV_TOOL = "uv_tool"
     PIPX = "pipx"
     PIP = "pip"
 
 
+def _is_homebrew() -> bool:
+    """Check if running inside a Homebrew-managed virtualenv."""
+    prefix = sys.prefix
+    return "/Cellar/" in prefix or "/homebrew/" in prefix.lower()
+
+
 def detect_install_method() -> InstallMethod:
     """Detect how prdash was installed."""
+    if _is_homebrew():
+        return InstallMethod.HOMEBREW
+
     # Try uv tool list
     try:
         result = subprocess.run(
@@ -57,6 +67,10 @@ def run_upgrade(method: InstallMethod | None = None) -> None:
     """Run the appropriate upgrade command for the detected install method."""
     if method is None:
         method = detect_install_method()
+
+    if method is InstallMethod.HOMEBREW:
+        print("Installed via Homebrew. Run: brew upgrade prdash")
+        return
 
     commands: dict[InstallMethod, list[str]] = {
         InstallMethod.UV_TOOL: ["uv", "tool", "upgrade", "prdash"],

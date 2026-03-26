@@ -176,7 +176,6 @@ wheels = [
 
 [[package]]
 name = "prdash"
-version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

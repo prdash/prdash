@@ -1,0 +1,44 @@
+name: Update Formula
+
+on:
+  repository_dispatch:
+    types: [update-formula]
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Update formula
+        run: |
+          VERSION="${{ github.event.client_payload.version }}"
+          echo "Updating formula to version ${VERSION}"
+
+          # Fetch SHA256 from PyPI
+          SHA256=$(curl -sL "https://pypi.org/pypi/prdash/${VERSION}/json" \
+            | jq -r '.urls[] | select(.packagetype=="sdist") | .digests.sha256')
+
+          if [ -z "$SHA256" ] || [ "$SHA256" = "null" ]; then
+            echo "::error::Failed to fetch SHA256 for version ${VERSION}"
+            exit 1
+          fi
+
+          echo "SHA256: ${SHA256}"
+
+          # Fetch the sdist URL from PyPI
+          URL=$(curl -sL "https://pypi.org/pypi/prdash/${VERSION}/json" \
+            | jq -r '.urls[] | select(.packagetype=="sdist") | .url')
+
+          # Update formula
+          sed -i "s|url \".*\"|url \"${URL}\"|" Formula/prdash.rb
+          sed -i "s|sha256 \".*\"|sha256 \"${SHA256}\"|" Formula/prdash.rb
+
+      - name: Commit and push
+        run: |
+          VERSION="${{ github.event.client_payload.version }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/prdash.rb
+          git commit -m "Update prdash to ${VERSION}"
+          git push

@@ -1,0 +1,84 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --python ${{ matrix.python-version }}
+
+      - name: Run tests
+        run: uv run pytest
+
+  publish-pypi:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+
+      - name: Build package
+        run: uvx hatch build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e # v1.13.0
+
+  github-release:
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
+        with:
+          generate_release_notes: true
+
+  update-homebrew:
+    needs: publish-pypi
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for PyPI to index the new version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          for i in $(seq 1 30); do
+            if curl -sf "https://pypi.org/pypi/prdash/${VERSION}/json" > /dev/null 2>&1; then
+              echo "PyPI has indexed version ${VERSION}"
+              exit 0
+            fi
+            echo "Waiting for PyPI to index version ${VERSION}... (attempt ${i}/30)"
+            sleep 10
+          done
+          echo "::error::Timed out waiting for PyPI to index version ${VERSION}"
+          exit 1
+
+      - name: Dispatch to Homebrew tap
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          curl -X POST \
+            -H "Authorization: token ${{ secrets.HOMEBREW_TAP_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/prdash/homebrew-prdash/dispatches" \
+            -d "{\"event_type\": \"update-formula\", \"client_payload\": {\"version\": \"${VERSION}\"}}"

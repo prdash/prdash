@@ -1,9 +1,14 @@
 [project]
 name = "prdash"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Terminal-based TUI dashboard for monitoring GitHub PRs requiring your attention"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.12"
+authors = [{ name = "prdash contributors" }]
+urls.Homepage = "https://github.com/prdash/prdash"
+urls.Repository = "https://github.com/prdash/prdash"
+urls.Issues = "https://github.com/prdash/prdash/issues"
 dependencies = [
     "textual",
     "httpx",
@@ -11,8 +16,14 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/prdash/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/prdash"]

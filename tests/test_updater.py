@@ -9,6 +9,7 @@ import pytest
 
 from prdash.updater import (
     InstallMethod,
+    _is_homebrew,
     detect_install_method,
     get_version,
     run_upgrade,
@@ -33,7 +34,38 @@ class TestGetVersion:
             assert get_version() == "dev"
 
 
+class TestIsHomebrew:
+    def test_cellar_path(self) -> None:
+        with patch("prdash.updater.sys") as mock_sys:
+            mock_sys.prefix = "/opt/homebrew/Cellar/prdash/0.1.0/libexec"
+            assert _is_homebrew() is True
+
+    def test_homebrew_linuxbrew_path(self) -> None:
+        with patch("prdash.updater.sys") as mock_sys:
+            mock_sys.prefix = "/home/user/.linuxbrew/Homebrew/lib/prdash"
+            assert _is_homebrew() is True  # Linuxbrew is Homebrew
+
+    def test_homebrew_lowercase_path(self) -> None:
+        with patch("prdash.updater.sys") as mock_sys:
+            mock_sys.prefix = "/usr/local/Homebrew/Cellar/prdash/0.1.0/libexec"
+            assert _is_homebrew() is True
+
+    def test_non_homebrew_path(self) -> None:
+        with patch("prdash.updater.sys") as mock_sys:
+            mock_sys.prefix = "/home/user/.local/share/uv/tools/prdash"
+            assert _is_homebrew() is False
+
+    def test_venv_path(self) -> None:
+        with patch("prdash.updater.sys") as mock_sys:
+            mock_sys.prefix = "/Users/user/dev/prdash/.venv"
+            assert _is_homebrew() is False
+
+
 class TestDetectInstallMethod:
+    def test_detects_homebrew(self) -> None:
+        with patch("prdash.updater._is_homebrew", return_value=True):
+            assert detect_install_method() == InstallMethod.HOMEBREW
+
     def test_detects_uv_tool(self) -> None:
         result = MagicMock()
         result.stdout = "prdash v0.1.0\nother-tool v1.0\n"
@@ -89,6 +121,18 @@ class TestDetectInstallMethod:
 
 
 class TestRunUpgrade:
+    def test_homebrew_prints_message(
+        self, capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        run_upgrade(InstallMethod.HOMEBREW)
+        captured = capsys.readouterr()
+        assert "brew upgrade prdash" in captured.out
+
+    def test_homebrew_does_not_run_subprocess(self) -> None:
+        with patch("subprocess.run") as mock_run:
+            run_upgrade(InstallMethod.HOMEBREW)
+        mock_run.assert_not_called()
+
     def test_uv_tool_upgrade(self) -> None:
         with patch("subprocess.run") as mock_run:
             run_upgrade(InstallMethod.UV_TOOL)
