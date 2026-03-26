@@ -17,6 +17,15 @@ from prdash.screens.setup_wizard import (
 
 
 @pytest.fixture
+def _no_detection():
+    """Prevent SetupWizardApp.on_mount from running auto-detection."""
+    with patch.object(
+        SetupWizardApp, "_run_detection", lambda self: None,
+    ):
+        yield
+
+
+@pytest.fixture
 def wizard_state() -> WizardState:
     return WizardState()
 
@@ -32,6 +41,7 @@ def prefilled_state() -> WizardState:
     )
 
 
+@pytest.mark.usefixtures("_no_detection")
 class TestRepoScreen:
     @pytest.mark.asyncio
     async def test_prefilled_values_shown(self, prefilled_state: WizardState) -> None:
@@ -92,6 +102,7 @@ class TestRepoScreen:
             assert wizard_state.repo_name == "my-repo"
 
 
+@pytest.mark.usefixtures("_no_detection")
 class TestUsernameScreen:
     @pytest.mark.asyncio
     async def test_advance_saves_username(self, wizard_state: WizardState) -> None:
@@ -132,6 +143,7 @@ class TestUsernameScreen:
             assert "required" in str(error.render()).lower()
 
 
+@pytest.mark.usefixtures("_no_detection")
 class TestTeamSlugsScreen:
     @pytest.mark.asyncio
     async def test_text_input_mode_when_no_detected(self, wizard_state: WizardState) -> None:
@@ -172,6 +184,7 @@ class TestTeamSlugsScreen:
             assert cb_frontend.value is False  # not in team_slugs
 
 
+@pytest.mark.usefixtures("_no_detection")
 class TestPollIntervalScreen:
     @pytest.mark.asyncio
     async def test_invalid_number_shows_error(self, prefilled_state: WizardState) -> None:
