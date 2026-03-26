@@ -11,7 +11,7 @@ from importlib.metadata import PackageNotFoundError, version
 def get_version() -> str:
     """Return the installed package version, or 'dev' if not installed."""
     try:
-        return version("prdash")
+        return version("prdash-tui")
     except PackageNotFoundError:
         return "dev"
 
@@ -42,7 +42,7 @@ def detect_install_method() -> InstallMethod:
             text=True,
             check=True,
         )
-        if "prdash" in result.stdout:
+        if "prdash-tui" in result.stdout:
             return InstallMethod.UV_TOOL
     except (FileNotFoundError, subprocess.CalledProcessError):
         pass
@@ -55,7 +55,7 @@ def detect_install_method() -> InstallMethod:
             text=True,
             check=True,
         )
-        if "prdash" in result.stdout:
+        if "prdash-tui" in result.stdout:
             return InstallMethod.PIPX
     except (FileNotFoundError, subprocess.CalledProcessError):
         pass
@@ -73,10 +73,10 @@ def run_upgrade(method: InstallMethod | None = None) -> None:
         return
 
     commands: dict[InstallMethod, list[str]] = {
-        InstallMethod.UV_TOOL: ["uv", "tool", "upgrade", "prdash"],
-        InstallMethod.PIPX: ["pipx", "upgrade", "prdash"],
+        InstallMethod.UV_TOOL: ["uv", "tool", "upgrade", "prdash-tui"],
+        InstallMethod.PIPX: ["pipx", "upgrade", "prdash-tui"],
         InstallMethod.PIP: [
-            sys.executable, "-m", "pip", "install", "--upgrade", "prdash",
+            sys.executable, "-m", "pip", "install", "--upgrade", "prdash-tui",
         ],
     }
 

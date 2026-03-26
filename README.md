@@ -21,13 +21,13 @@ brew install prdash
 
 ```bash
 # Using uv (recommended)
-uv tool install prdash
+uv tool install prdash-tui
 
 # Using pipx
-pipx install prdash
+pipx install prdash-tui
 
 # Using pip
-pip install prdash
+pip install prdash-tui
 ```
 
 ### From source (development)

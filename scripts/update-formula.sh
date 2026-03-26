@@ -19,7 +19,7 @@ fi
 
 echo "Fetching SHA256 for prdash ${VERSION} from PyPI..."
 
-PYPI_JSON=$(curl -sf "https://pypi.org/pypi/prdash/${VERSION}/json") || {
+PYPI_JSON=$(curl -sf "https://pypi.org/pypi/prdash-tui/${VERSION}/json") || {
   echo "Error: Version ${VERSION} not found on PyPI" >&2
   exit 1
 }

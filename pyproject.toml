@@ -1,5 +1,5 @@
 [project]
-name = "prdash"
+name = "prdash-tui"
 dynamic = ["version"]
 description = "Terminal-based TUI dashboard for monitoring GitHub PRs requiring your attention"
 readme = "README.md"

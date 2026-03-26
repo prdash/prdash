@@ -64,7 +64,7 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           for i in $(seq 1 30); do
-            if curl -sf "https://pypi.org/pypi/prdash/${VERSION}/json" > /dev/null 2>&1; then
+            if curl -sf "https://pypi.org/pypi/prdash-tui/${VERSION}/json" > /dev/null 2>&1; then
               echo "PyPI has indexed version ${VERSION}"
               exit 0
             fi

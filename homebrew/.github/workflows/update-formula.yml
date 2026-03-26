@@ -16,7 +16,7 @@ jobs:
           echo "Updating formula to version ${VERSION}"
 
           # Fetch SHA256 from PyPI
-          SHA256=$(curl -sL "https://pypi.org/pypi/prdash/${VERSION}/json" \
+          SHA256=$(curl -sL "https://pypi.org/pypi/prdash-tui/${VERSION}/json" \
             | jq -r '.urls[] | select(.packagetype=="sdist") | .digests.sha256')
 
           if [ -z "$SHA256" ] || [ "$SHA256" = "null" ]; then
@@ -27,7 +27,7 @@ jobs:
           echo "SHA256: ${SHA256}"
 
           # Fetch the sdist URL from PyPI
-          URL=$(curl -sL "https://pypi.org/pypi/prdash/${VERSION}/json" \
+          URL=$(curl -sL "https://pypi.org/pypi/prdash-tui/${VERSION}/json" \
             | jq -r '.urls[] | select(.packagetype=="sdist") | .url')
 
           # Update formula

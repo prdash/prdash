@@ -175,7 +175,7 @@ wheels = [
 ]
 
 [[package]]
-name = "prdash"
+name = "prdash-tui"
 source = { editable = "." }
 dependencies = [
     { name = "httpx" },

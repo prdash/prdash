@@ -3,7 +3,7 @@ class Prdash < Formula
 
   desc "Terminal dashboard for monitoring GitHub PRs requiring your attention"
   homepage "https://github.com/prdash/prdash"
-  url "https://files.pythonhosted.org/packages/source/p/prdash/prdash-0.1.0.tar.gz"
+  url "https://files.pythonhosted.org/packages/source/p/prdash-tui/prdash_tui-0.1.0.tar.gz"
   sha256 "PLACEHOLDER_SHA256"
   license "MIT"
 
@@ -11,7 +11,7 @@ class Prdash < Formula
 
   def install
     virtualenv_create(libexec, "python3.12")
-    system libexec/"bin/pip", "install", "prdash==#{version}"
+    system libexec/"bin/pip", "install", "prdash-tui==#{version}"
     bin.install_symlink Dir[libexec/"bin/prdash"]
   end
 

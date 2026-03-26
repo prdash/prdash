@@ -68,7 +68,7 @@ class TestDetectInstallMethod:
 
     def test_detects_uv_tool(self) -> None:
         result = MagicMock()
-        result.stdout = "prdash v0.1.0\nother-tool v1.0\n"
+        result.stdout = "prdash-tui v0.1.0\nother-tool v1.0\n"
         with patch("subprocess.run", return_value=result):
             assert detect_install_method() == InstallMethod.UV_TOOL
 
@@ -77,7 +77,7 @@ class TestDetectInstallMethod:
         uv_result.stdout = "other-tool v1.0\n"
 
         pipx_result = MagicMock()
-        pipx_result.stdout = "prdash 0.1.0\n"
+        pipx_result.stdout = "prdash-tui 0.1.0\n"
 
         with patch("subprocess.run", side_effect=[uv_result, pipx_result]):
             assert detect_install_method() == InstallMethod.PIPX
@@ -94,7 +94,7 @@ class TestDetectInstallMethod:
 
     def test_uv_not_installed(self) -> None:
         pipx_result = MagicMock()
-        pipx_result.stdout = "prdash 0.1.0\n"
+        pipx_result.stdout = "prdash-tui 0.1.0\n"
 
         with patch(
             "subprocess.run",
@@ -111,7 +111,7 @@ class TestDetectInstallMethod:
 
     def test_uv_command_fails(self) -> None:
         pipx_result = MagicMock()
-        pipx_result.stdout = "prdash 0.1.0\n"
+        pipx_result.stdout = "prdash-tui 0.1.0\n"
 
         with patch(
             "subprocess.run",
@@ -137,7 +137,7 @@ class TestRunUpgrade:
         with patch("subprocess.run") as mock_run:
             run_upgrade(InstallMethod.UV_TOOL)
         mock_run.assert_called_once_with(
-            ["uv", "tool", "upgrade", "prdash"],
+            ["uv", "tool", "upgrade", "prdash-tui"],
             check=True,
         )
 
@@ -145,7 +145,7 @@ class TestRunUpgrade:
         with patch("subprocess.run") as mock_run:
             run_upgrade(InstallMethod.PIPX)
         mock_run.assert_called_once_with(
-            ["pipx", "upgrade", "prdash"],
+            ["pipx", "upgrade", "prdash-tui"],
             check=True,
         )
 
@@ -153,7 +153,7 @@ class TestRunUpgrade:
         with patch("subprocess.run") as mock_run:
             run_upgrade(InstallMethod.PIP)
         args = mock_run.call_args[0][0]
-        assert args[-3:] == ["install", "--upgrade", "prdash"]
+        assert args[-3:] == ["install", "--upgrade", "prdash-tui"]
         assert "-m" in args
         assert "pip" in args
 
@@ -167,7 +167,7 @@ class TestRunUpgrade:
         ):
             run_upgrade()
         mock_run.assert_called_once_with(
-            ["uv", "tool", "upgrade", "prdash"],
+            ["uv", "tool", "upgrade", "prdash-tui"],
             check=True,
         )
 
@@ -175,7 +175,7 @@ class TestRunUpgrade:
         with patch("subprocess.run"):
             run_upgrade(InstallMethod.UV_TOOL)
         captured = capsys.readouterr()
-        assert "uv tool upgrade prdash" in captured.out
+        assert "uv tool upgrade prdash-tui" in captured.out
 
     def test_file_not_found_exits_1(self) -> None:
         with (
