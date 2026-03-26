@@ -35,7 +35,8 @@ pip install prdash-tui
 ```bash
 git clone https://github.com/prdash/prdash.git
 cd prdash
-uv sync
+uv sync                    # install dependencies
+uv tool install -e .       # add `prdash` to your PATH (editable)
 ```
 
 ### Updating
