@@ -8,7 +8,7 @@ from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Select, Static, Switch
 
-from gh_review_dashboard.config import QueryGroupConfig, QueryGroupType
+from prdash.config import QueryGroupConfig, QueryGroupType
 
 
 class _GroupRow(Static):

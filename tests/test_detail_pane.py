@@ -4,14 +4,14 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from gh_review_dashboard.models import (
+from prdash.models import (
     BranchCommit,
     BranchFileChange,
     CandidateBranch,
     PullRequest,
 )
-from gh_review_dashboard.app import ReviewDashboardApp
-from gh_review_dashboard.widgets.detail_pane import (
+from prdash.app import ReviewDashboardApp
+from prdash.widgets.detail_pane import (
     DetailPaneWidget,
     _format_branch_commits,
     _format_branch_files,
@@ -148,7 +148,7 @@ def test_format_reviewers_empty(sample_pr_minimal):
 
 
 def test_format_reviewers_unknown_state():
-    from gh_review_dashboard.models import Reviewer
+    from prdash.models import Reviewer
 
     pr = PullRequest(
         id="PR_3",

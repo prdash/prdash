@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from gh_review_dashboard.detect import (
+from prdash.detect import (
     detect_repo_from_git_remote,
     detect_team_slugs,
     detect_username,
@@ -19,54 +19,54 @@ class TestDetectRepoFromGitRemote:
         result = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="git@github.com:my-org/my-repo.git\n"
         )
-        with patch("gh_review_dashboard.detect.subprocess.run", return_value=result):
+        with patch("prdash.detect.subprocess.run", return_value=result):
             assert detect_repo_from_git_remote() == ("my-org", "my-repo")
 
     def test_ssh_url_no_dot_git(self) -> None:
         result = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="git@github.com:my-org/my-repo\n"
         )
-        with patch("gh_review_dashboard.detect.subprocess.run", return_value=result):
+        with patch("prdash.detect.subprocess.run", return_value=result):
             assert detect_repo_from_git_remote() == ("my-org", "my-repo")
 
     def test_https_url(self) -> None:
         result = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="https://github.com/acme/widget.git\n"
         )
-        with patch("gh_review_dashboard.detect.subprocess.run", return_value=result):
+        with patch("prdash.detect.subprocess.run", return_value=result):
             assert detect_repo_from_git_remote() == ("acme", "widget")
 
     def test_https_url_no_dot_git(self) -> None:
         result = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="https://github.com/acme/widget\n"
         )
-        with patch("gh_review_dashboard.detect.subprocess.run", return_value=result):
+        with patch("prdash.detect.subprocess.run", return_value=result):
             assert detect_repo_from_git_remote() == ("acme", "widget")
 
     def test_git_not_found(self) -> None:
         with patch(
-            "gh_review_dashboard.detect.subprocess.run",
+            "prdash.detect.subprocess.run",
             side_effect=FileNotFoundError,
         ):
             assert detect_repo_from_git_remote() is None
 
     def test_no_origin_remote(self) -> None:
         with patch(
-            "gh_review_dashboard.detect.subprocess.run",
+            "prdash.detect.subprocess.run",
             side_effect=subprocess.CalledProcessError(1, "git"),
         ):
             assert detect_repo_from_git_remote() is None
 
     def test_empty_output(self) -> None:
         result = subprocess.CompletedProcess(args=[], returncode=0, stdout="\n")
-        with patch("gh_review_dashboard.detect.subprocess.run", return_value=result):
+        with patch("prdash.detect.subprocess.run", return_value=result):
             assert detect_repo_from_git_remote() is None
 
     def test_non_github_url(self) -> None:
         result = subprocess.CompletedProcess(
             args=[], returncode=0, stdout="git@gitlab.com:org/repo.git\n"
         )
-        with patch("gh_review_dashboard.detect.subprocess.run", return_value=result):
+        with patch("prdash.detect.subprocess.run", return_value=result):
             assert detect_repo_from_git_remote() is None
 
 
@@ -74,7 +74,7 @@ class TestDetectUsername:
     @pytest.mark.asyncio
     async def test_success(self) -> None:
         with patch(
-            "gh_review_dashboard.detect.validate_token",
+            "prdash.detect.validate_token",
             new_callable=AsyncMock,
             return_value="octocat",
         ):
@@ -83,7 +83,7 @@ class TestDetectUsername:
     @pytest.mark.asyncio
     async def test_failure_returns_none(self) -> None:
         with patch(
-            "gh_review_dashboard.detect.validate_token",
+            "prdash.detect.validate_token",
             new_callable=AsyncMock,
             side_effect=Exception("API error"),
         ):
@@ -111,7 +111,7 @@ class TestDetectTeamSlugs:
             {"slug": "frontend", "organization": {"login": "my-org"}},
             {"slug": "other-team", "organization": {"login": "other-org"}},
         ])
-        with patch("gh_review_dashboard.detect.httpx.AsyncClient", return_value=mock_client):
+        with patch("prdash.detect.httpx.AsyncClient", return_value=mock_client):
             result = await detect_team_slugs("ghp_test", "my-org", "user")
         assert result == ["backend", "frontend"]
 
@@ -120,7 +120,7 @@ class TestDetectTeamSlugs:
         mock_client = _mock_team_client([
             {"slug": "team-a", "organization": {"login": "My-Org"}},
         ])
-        with patch("gh_review_dashboard.detect.httpx.AsyncClient", return_value=mock_client):
+        with patch("prdash.detect.httpx.AsyncClient", return_value=mock_client):
             result = await detect_team_slugs("ghp_test", "my-org", "user")
         assert result == ["team-a"]
 
@@ -131,13 +131,13 @@ class TestDetectTeamSlugs:
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("gh_review_dashboard.detect.httpx.AsyncClient", return_value=mock_client):
+        with patch("prdash.detect.httpx.AsyncClient", return_value=mock_client):
             result = await detect_team_slugs("ghp_test", "my-org", "user")
         assert result == []
 
     @pytest.mark.asyncio
     async def test_no_teams_returns_empty(self) -> None:
         mock_client = _mock_team_client([])
-        with patch("gh_review_dashboard.detect.httpx.AsyncClient", return_value=mock_client):
+        with patch("prdash.detect.httpx.AsyncClient", return_value=mock_client):
             result = await detect_team_slugs("ghp_test", "my-org", "user")
         assert result == []

@@ -8,7 +8,7 @@ allowed-tools: Read, Grep, Glob, Edit, Write, Bash(git *), AskUserQuestion
 
 # New Task Creation Workflow
 
-You are creating a new task specification for the GitHub Review Dashboard project. Follow these steps carefully.
+You are creating a new task specification for the PR Dash project. Follow these steps carefully.
 
 **IMPORTANT: No files should be touched or updated besides `WORK_TRACKER.md` and files under the `tasks/` directory.** Do not modify source code, tests, configuration, documentation, or any other project files during this workflow.
 

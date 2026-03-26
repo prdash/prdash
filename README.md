@@ -1,4 +1,4 @@
-# GitHub Review Dashboard
+# PR Dash
 
 Terminal-based TUI dashboard for monitoring GitHub pull requests that need your attention. Built with [Textual](https://textual.textualize.io/) for a rich terminal experience.
 
@@ -13,8 +13,8 @@ Terminal-based TUI dashboard for monitoring GitHub pull requests that need your 
 ### From source (development)
 
 ```bash
-git clone https://github.com/your-org/gh-review-dashboard.git
-cd gh-review-dashboard
+git clone https://github.com/your-org/prdash.git
+cd prdash
 uv sync
 ```
 
@@ -22,21 +22,21 @@ uv sync
 
 ```bash
 # Using uv (recommended)
-uv tool install gh-review-dashboard
+uv tool install prdash
 
 # Using pipx
-pipx install gh-review-dashboard
+pipx install prdash
 
 # Using pip
-pip install gh-review-dashboard
+pip install prdash
 ```
 
-This makes the `ghrd` command available globally.
+This makes the `prdash` command available globally.
 
 To update to the latest version:
 
 ```bash
-ghrd --update
+prdash --update
 ```
 
 This auto-detects your install method (uv/pipx/pip) and runs the appropriate upgrade command.
@@ -44,13 +44,13 @@ This auto-detects your install method (uv/pipx/pip) and runs the appropriate upg
 ## Quick Start
 
 ```bash
-ghrd
+prdash
 ```
 
 Or, if running from the project directory without a global install:
 
 ```bash
-uv run ghrd
+uv run prdash
 ```
 
 On first run, a **setup wizard** walks you through configuration:
@@ -64,7 +64,7 @@ After setup, the dashboard launches automatically.
 
 ## Configuration
 
-Config file location: `~/.config/gh-review-dashboard/config.toml`
+Config file location: `~/.config/prdash/config.toml`
 
 ### Example config
 
@@ -132,7 +132,7 @@ enabled = false
 ## Usage
 
 ```bash
-ghrd
+prdash
 ```
 
 The dashboard has a split-pane layout:

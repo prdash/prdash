@@ -2,12 +2,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from gh_review_dashboard.app import ReviewDashboardApp
-from gh_review_dashboard.config import AppConfig, QueryGroupConfig, QueryGroupType
-from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkError
-from gh_review_dashboard.github.client import GitHubClient
-from gh_review_dashboard.models import PullRequest, QueryGroupResult
-from gh_review_dashboard.widgets import DetailPaneWidget, PRListWidget
+from prdash.app import ReviewDashboardApp
+from prdash.config import AppConfig, QueryGroupConfig, QueryGroupType
+from prdash.exceptions import AuthError, GitHubAPIError, NetworkError
+from prdash.github.client import GitHubClient
+from prdash.models import PullRequest, QueryGroupResult
+from prdash.widgets import DetailPaneWidget, PRListWidget
 
 
 def _make_config() -> AppConfig:
@@ -33,7 +33,7 @@ def _make_plain_app():
 
 def test_app_title():
     app = _make_plain_app()
-    assert app.TITLE == "GitHub Review Dashboard"
+    assert app.TITLE == "PR Dash"
 
 
 def test_app_css_path():
@@ -101,7 +101,7 @@ async def test_app_horizontal_container_has_two_children():
 async def test_app_pr_selected_wires_to_detail_pane(sample_pr):
     app = _make_plain_app()
     async with app.run_test(size=(120, 40)) as pilot:
-        from gh_review_dashboard.widgets.pr_list import PRSelected
+        from prdash.widgets.pr_list import PRSelected
 
         # Post from the PRListWidget so it bubbles up to the app
         pr_list = pilot.app.query_one(PRListWidget)
@@ -260,7 +260,7 @@ async def test_refresh_data_partial_group_errors(sample_pr):
         await pilot.pause()
         # The successful group should still be displayed
         pr_list = pilot.app.query_one(PRListWidget)
-        from gh_review_dashboard.widgets.pr_list import GroupHeaderItem
+        from prdash.widgets.pr_list import GroupHeaderItem
         headers = list(pr_list.query(GroupHeaderItem))
         assert len(headers) == 1
         assert headers[0].group_name == "Direct"
@@ -287,7 +287,7 @@ async def test_refresh_data_deduplicates_groups(sample_pr, sample_pr_minimal):
         await pilot.pause()
         await pilot.pause()
         pr_list = pilot.app.query_one(PRListWidget)
-        from gh_review_dashboard.widgets.pr_list import PRRow
+        from prdash.widgets.pr_list import PRRow
         pr_rows = list(pr_list.query(PRRow))
         # Only 2 unique PRs should be shown, not 3
         pr_ids = [row.pr.id for row in pr_rows]

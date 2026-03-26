@@ -11,12 +11,12 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Checkbox, Footer, Header, Input, Label, Static
 
-from gh_review_dashboard.config import (
+from prdash.config import (
     DEFAULT_QUERY_GROUPS,
     AppConfig,
     save_config,
 )
-from gh_review_dashboard.detect import (
+from prdash.detect import (
     detect_repo_from_git_remote,
     detect_team_slugs,
     detect_username,
@@ -314,7 +314,7 @@ class PollIntervalScreen(WizardStep):
 class SetupWizardApp(App):
     """Standalone app for the first-run setup wizard."""
 
-    TITLE = "GitHub Review Dashboard - Setup"
+    TITLE = "PR Dash - Setup"
 
     def __init__(self, token: str, **kwargs: object) -> None:
         super().__init__(**kwargs)

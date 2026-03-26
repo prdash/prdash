@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from gh_review_dashboard.updater import (
+from prdash.updater import (
     InstallMethod,
     detect_install_method,
     get_version,
@@ -18,7 +18,7 @@ from gh_review_dashboard.updater import (
 class TestGetVersion:
     def test_returns_installed_version(self) -> None:
         with patch(
-            "gh_review_dashboard.updater.version",
+            "prdash.updater.version",
             return_value="1.2.3",
         ):
             assert get_version() == "1.2.3"
@@ -27,7 +27,7 @@ class TestGetVersion:
         from importlib.metadata import PackageNotFoundError
 
         with patch(
-            "gh_review_dashboard.updater.version",
+            "prdash.updater.version",
             side_effect=PackageNotFoundError,
         ):
             assert get_version() == "dev"
@@ -36,7 +36,7 @@ class TestGetVersion:
 class TestDetectInstallMethod:
     def test_detects_uv_tool(self) -> None:
         result = MagicMock()
-        result.stdout = "gh-review-dashboard v0.1.0\nother-tool v1.0\n"
+        result.stdout = "prdash v0.1.0\nother-tool v1.0\n"
         with patch("subprocess.run", return_value=result):
             assert detect_install_method() == InstallMethod.UV_TOOL
 
@@ -45,7 +45,7 @@ class TestDetectInstallMethod:
         uv_result.stdout = "other-tool v1.0\n"
 
         pipx_result = MagicMock()
-        pipx_result.stdout = "gh-review-dashboard 0.1.0\n"
+        pipx_result.stdout = "prdash 0.1.0\n"
 
         with patch("subprocess.run", side_effect=[uv_result, pipx_result]):
             assert detect_install_method() == InstallMethod.PIPX
@@ -62,7 +62,7 @@ class TestDetectInstallMethod:
 
     def test_uv_not_installed(self) -> None:
         pipx_result = MagicMock()
-        pipx_result.stdout = "gh-review-dashboard 0.1.0\n"
+        pipx_result.stdout = "prdash 0.1.0\n"
 
         with patch(
             "subprocess.run",
@@ -79,7 +79,7 @@ class TestDetectInstallMethod:
 
     def test_uv_command_fails(self) -> None:
         pipx_result = MagicMock()
-        pipx_result.stdout = "gh-review-dashboard 0.1.0\n"
+        pipx_result.stdout = "prdash 0.1.0\n"
 
         with patch(
             "subprocess.run",
@@ -93,7 +93,7 @@ class TestRunUpgrade:
         with patch("subprocess.run") as mock_run:
             run_upgrade(InstallMethod.UV_TOOL)
         mock_run.assert_called_once_with(
-            ["uv", "tool", "upgrade", "gh-review-dashboard"],
+            ["uv", "tool", "upgrade", "prdash"],
             check=True,
         )
 
@@ -101,7 +101,7 @@ class TestRunUpgrade:
         with patch("subprocess.run") as mock_run:
             run_upgrade(InstallMethod.PIPX)
         mock_run.assert_called_once_with(
-            ["pipx", "upgrade", "gh-review-dashboard"],
+            ["pipx", "upgrade", "prdash"],
             check=True,
         )
 
@@ -109,21 +109,21 @@ class TestRunUpgrade:
         with patch("subprocess.run") as mock_run:
             run_upgrade(InstallMethod.PIP)
         args = mock_run.call_args[0][0]
-        assert args[-3:] == ["install", "--upgrade", "gh-review-dashboard"]
+        assert args[-3:] == ["install", "--upgrade", "prdash"]
         assert "-m" in args
         assert "pip" in args
 
     def test_auto_detects_method(self) -> None:
         with (
             patch(
-                "gh_review_dashboard.updater.detect_install_method",
+                "prdash.updater.detect_install_method",
                 return_value=InstallMethod.UV_TOOL,
             ),
             patch("subprocess.run") as mock_run,
         ):
             run_upgrade()
         mock_run.assert_called_once_with(
-            ["uv", "tool", "upgrade", "gh-review-dashboard"],
+            ["uv", "tool", "upgrade", "prdash"],
             check=True,
         )
 
@@ -131,7 +131,7 @@ class TestRunUpgrade:
         with patch("subprocess.run"):
             run_upgrade(InstallMethod.UV_TOOL)
         captured = capsys.readouterr()
-        assert "uv tool upgrade gh-review-dashboard" in captured.out
+        assert "uv tool upgrade prdash" in captured.out
 
     def test_file_not_found_exits_1(self) -> None:
         with (

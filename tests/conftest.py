@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from gh_review_dashboard.models import (
+from prdash.models import (
     CheckRun,
     PullRequest,
     QueryGroupResult,
@@ -16,7 +16,7 @@ from gh_review_dashboard.models import (
 @pytest.fixture(autouse=True)
 def _clean_sys_argv(monkeypatch: pytest.MonkeyPatch) -> None:
     """Prevent argparse from seeing pytest's arguments."""
-    monkeypatch.setattr("sys.argv", ["ghrd"])
+    monkeypatch.setattr("sys.argv", ["prdash"])
 
 
 @pytest.fixture

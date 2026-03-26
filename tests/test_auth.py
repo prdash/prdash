@@ -1,4 +1,4 @@
-"""Tests for gh_review_dashboard.auth."""
+"""Tests for prdash.auth."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ import httpx
 import pytest
 import respx
 
-from gh_review_dashboard.auth import get_github_token, validate_token
-from gh_review_dashboard.exceptions import AuthError
+from prdash.auth import get_github_token, validate_token
+from prdash.exceptions import AuthError
 
 
 # --- get_github_token tests ---
@@ -23,13 +23,13 @@ def test_get_token_success() -> None:
         stdout="ghp_abc123token\n",
         stderr="",
     )
-    with patch("gh_review_dashboard.auth.subprocess.run", return_value=result):
+    with patch("prdash.auth.subprocess.run", return_value=result):
         assert get_github_token() == "ghp_abc123token"
 
 
 def test_get_token_gh_not_installed() -> None:
     with patch(
-        "gh_review_dashboard.auth.subprocess.run", side_effect=FileNotFoundError
+        "prdash.auth.subprocess.run", side_effect=FileNotFoundError
     ):
         with pytest.raises(AuthError, match="not found"):
             get_github_token()
@@ -37,7 +37,7 @@ def test_get_token_gh_not_installed() -> None:
 
 def test_get_token_not_authenticated() -> None:
     with patch(
-        "gh_review_dashboard.auth.subprocess.run",
+        "prdash.auth.subprocess.run",
         side_effect=subprocess.CalledProcessError(1, "gh"),
     ):
         with pytest.raises(AuthError, match="Not authenticated"):
@@ -51,7 +51,7 @@ def test_get_token_empty_result() -> None:
         stdout="  \n",
         stderr="",
     )
-    with patch("gh_review_dashboard.auth.subprocess.run", return_value=result):
+    with patch("prdash.auth.subprocess.run", return_value=result):
         with pytest.raises(AuthError, match="empty result"):
             get_github_token()
 

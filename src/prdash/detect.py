@@ -7,7 +7,7 @@ import subprocess
 
 import httpx
 
-from gh_review_dashboard.auth import validate_token
+from prdash.auth import validate_token
 
 
 def detect_repo_from_git_remote() -> tuple[str, str] | None:

@@ -1,19 +1,19 @@
 import argparse
 import sys
 
-from gh_review_dashboard.app import ReviewDashboardApp
-from gh_review_dashboard.auth import get_github_token
-from gh_review_dashboard.config import CONFIG_FILE, load_config
-from gh_review_dashboard.exceptions import DashboardError
-from gh_review_dashboard.github.client import GitHubClient, create_http_client
-from gh_review_dashboard.screens.setup_wizard import SetupWizardApp
-from gh_review_dashboard.updater import get_version, run_upgrade
+from prdash.app import ReviewDashboardApp
+from prdash.auth import get_github_token
+from prdash.config import CONFIG_FILE, load_config
+from prdash.exceptions import DashboardError
+from prdash.github.client import GitHubClient, create_http_client
+from prdash.screens.setup_wizard import SetupWizardApp
+from prdash.updater import get_version, run_upgrade
 
 
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="ghrd",
-        description="GitHub Review Dashboard",
+        prog="prdash",
+        description="PR Dash",
     )
     parser.add_argument(
         "-V", "--version",
@@ -23,7 +23,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--update",
         action="store_true",
-        help="Update gh-review-dashboard to the latest version",
+        help="Update prdash to the latest version",
     )
     return parser
 

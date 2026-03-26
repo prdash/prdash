@@ -8,8 +8,8 @@ from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
 from textual.widgets import Button, Footer, Header, Input, Label, Static
 
-from gh_review_dashboard.config import AppConfig, QueryGroupConfig, save_config
-from gh_review_dashboard.screens.query_groups import QueryGroupsScreen
+from prdash.config import AppConfig, QueryGroupConfig, save_config
+from prdash.screens.query_groups import QueryGroupsScreen
 
 
 class SettingsScreen(Screen[AppConfig | None]):

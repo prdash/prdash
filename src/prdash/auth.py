@@ -6,7 +6,7 @@ import subprocess
 
 import httpx
 
-from gh_review_dashboard.exceptions import AuthError
+from prdash.exceptions import AuthError
 
 
 def get_github_token() -> str:

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from gh_review_dashboard.config import AppConfig, QueryGroupConfig, QueryGroupType, get_org_from_repos
+from prdash.config import AppConfig, QueryGroupConfig, QueryGroupType, get_org_from_repos
 
 DEFAULT_PAGE_SIZE = 50
 

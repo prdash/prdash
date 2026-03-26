@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from gh_review_dashboard.config import (
+from prdash.config import (
     AppConfig,
     QueryGroupConfig,
     QueryGroupType,
@@ -14,7 +14,7 @@ from gh_review_dashboard.config import (
     load_config,
     save_config,
 )
-from gh_review_dashboard.exceptions import ConfigError
+from prdash.exceptions import ConfigError
 
 
 def _write_toml(tmp_path: Path, content: str) -> Path:
@@ -351,7 +351,7 @@ class TestReadyToPrConfig:
         assert QueryGroupType.READY_TO_PR == "ready_to_pr"
 
     def test_default_groups_include_ready_to_pr_last(self) -> None:
-        from gh_review_dashboard.config import DEFAULT_QUERY_GROUPS
+        from prdash.config import DEFAULT_QUERY_GROUPS
         assert DEFAULT_QUERY_GROUPS[-1].type == QueryGroupType.READY_TO_PR
         assert DEFAULT_QUERY_GROUPS[-1].name == "Ready to PR"
 

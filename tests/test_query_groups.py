@@ -6,14 +6,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from gh_review_dashboard.app import ReviewDashboardApp
-from gh_review_dashboard.config import (
+from prdash.app import ReviewDashboardApp
+from prdash.config import (
     AppConfig,
     QueryGroupConfig,
     QueryGroupType,
 )
-from gh_review_dashboard.screens.query_groups import QueryGroupsScreen
-from gh_review_dashboard.screens.settings import SettingsScreen
+from prdash.screens.query_groups import QueryGroupsScreen
+from prdash.screens.settings import SettingsScreen
 
 
 def _make_config(**overrides: object) -> AppConfig:

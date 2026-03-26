@@ -1,4 +1,4 @@
-"""Tests for gh_review_dashboard.models."""
+"""Tests for prdash.models."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from gh_review_dashboard.models import (
+from prdash.models import (
     BranchCommit,
     BranchFileChange,
     CandidateBranch,

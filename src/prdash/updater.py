@@ -11,7 +11,7 @@ from importlib.metadata import PackageNotFoundError, version
 def get_version() -> str:
     """Return the installed package version, or 'dev' if not installed."""
     try:
-        return version("gh-review-dashboard")
+        return version("prdash")
     except PackageNotFoundError:
         return "dev"
 
@@ -23,7 +23,7 @@ class InstallMethod(Enum):
 
 
 def detect_install_method() -> InstallMethod:
-    """Detect how gh-review-dashboard was installed."""
+    """Detect how prdash was installed."""
     # Try uv tool list
     try:
         result = subprocess.run(
@@ -32,7 +32,7 @@ def detect_install_method() -> InstallMethod:
             text=True,
             check=True,
         )
-        if "gh-review-dashboard" in result.stdout:
+        if "prdash" in result.stdout:
             return InstallMethod.UV_TOOL
     except (FileNotFoundError, subprocess.CalledProcessError):
         pass
@@ -45,7 +45,7 @@ def detect_install_method() -> InstallMethod:
             text=True,
             check=True,
         )
-        if "gh-review-dashboard" in result.stdout:
+        if "prdash" in result.stdout:
             return InstallMethod.PIPX
     except (FileNotFoundError, subprocess.CalledProcessError):
         pass
@@ -59,10 +59,10 @@ def run_upgrade(method: InstallMethod | None = None) -> None:
         method = detect_install_method()
 
     commands: dict[InstallMethod, list[str]] = {
-        InstallMethod.UV_TOOL: ["uv", "tool", "upgrade", "gh-review-dashboard"],
-        InstallMethod.PIPX: ["pipx", "upgrade", "gh-review-dashboard"],
+        InstallMethod.UV_TOOL: ["uv", "tool", "upgrade", "prdash"],
+        InstallMethod.PIPX: ["pipx", "upgrade", "prdash"],
         InstallMethod.PIP: [
-            sys.executable, "-m", "pip", "install", "--upgrade", "gh-review-dashboard",
+            sys.executable, "-m", "pip", "install", "--upgrade", "prdash",
         ],
     }
 

@@ -1,4 +1,4 @@
-"""Tests for gh_review_dashboard.github (client + queries)."""
+"""Tests for prdash.github (client + queries)."""
 
 from __future__ import annotations
 
@@ -6,14 +6,14 @@ import httpx
 import pytest
 import respx
 
-from gh_review_dashboard.config import (
+from prdash.config import (
     AppConfig,
     QueryGroupConfig,
     QueryGroupType,
 )
-from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkError
-from gh_review_dashboard.github.client import GitHubClient, create_http_client
-from gh_review_dashboard.github.queries import build_search_query
+from prdash.exceptions import AuthError, GitHubAPIError, NetworkError
+from prdash.github.client import GitHubClient, create_http_client
+from prdash.github.queries import build_search_query
 
 
 # --- Fixtures ---

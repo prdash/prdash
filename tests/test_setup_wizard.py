@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from gh_review_dashboard.screens.setup_wizard import (
+from prdash.screens.setup_wizard import (
     PollIntervalScreen,
     RepoScreen,
     SetupWizardApp,
@@ -220,7 +220,7 @@ class TestPollIntervalScreen:
         app = SetupWizardApp(token="ghp_test")
         app.wizard_state = prefilled_state
 
-        with patch("gh_review_dashboard.screens.setup_wizard.save_config") as mock_save:
+        with patch("prdash.screens.setup_wizard.save_config") as mock_save:
             async with app.run_test(size=(80, 24)) as pilot:
                 screen = PollIntervalScreen(prefilled_state, "ghp_test")
                 app.push_screen(screen)
@@ -248,16 +248,16 @@ class TestSetupWizardApp:
     async def test_detection_populates_state(self) -> None:
         with (
             patch(
-                "gh_review_dashboard.screens.setup_wizard.detect_repo_from_git_remote",
+                "prdash.screens.setup_wizard.detect_repo_from_git_remote",
                 return_value=("detected-org", "detected-repo"),
             ),
             patch(
-                "gh_review_dashboard.screens.setup_wizard.detect_username",
+                "prdash.screens.setup_wizard.detect_username",
                 new_callable=AsyncMock,
                 return_value="detected-user",
             ),
             patch(
-                "gh_review_dashboard.screens.setup_wizard.detect_team_slugs",
+                "prdash.screens.setup_wizard.detect_team_slugs",
                 new_callable=AsyncMock,
                 return_value=["team-a"],
             ),

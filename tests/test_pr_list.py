@@ -4,9 +4,9 @@ from unittest.mock import patch
 
 import pytest
 
-from gh_review_dashboard.app import ReviewDashboardApp
-from gh_review_dashboard.models import CandidateBranch, PullRequest, QueryGroupResult, Reviewer
-from gh_review_dashboard.widgets.pr_list import (
+from prdash.app import ReviewDashboardApp
+from prdash.models import CandidateBranch, PullRequest, QueryGroupResult, Reviewer
+from prdash.widgets.pr_list import (
     BranchRow,
     BranchSelected,
     EmptyGroupItem,
@@ -274,7 +274,7 @@ async def test_enter_on_pr_row_opens_browser(sample_pr):
         await pilot.press("j")
         await pilot.pause()
 
-        with patch("gh_review_dashboard.widgets.pr_list.webbrowser.open") as mock_open:
+        with patch("prdash.widgets.pr_list.webbrowser.open") as mock_open:
             await pilot.press("enter")
             await pilot.pause()
             mock_open.assert_called_once_with(sample_pr.url)
@@ -559,7 +559,7 @@ async def test_enter_on_empty_group_item_is_noop(sample_pr):
         await pilot.pause()
 
         # Press enter — should not crash
-        with patch("gh_review_dashboard.widgets.pr_list.webbrowser.open") as mock_open:
+        with patch("prdash.widgets.pr_list.webbrowser.open") as mock_open:
             await pilot.press("enter")
             await pilot.pause()
             mock_open.assert_not_called()
@@ -913,7 +913,7 @@ async def test_enter_on_branch_row_opens_compare_url():
         await pilot.press("j")
         await pilot.pause()
 
-        with patch("gh_review_dashboard.widgets.pr_list.webbrowser.open") as mock_open:
+        with patch("prdash.widgets.pr_list.webbrowser.open") as mock_open:
             await pilot.press("enter")
             await pilot.pause()
             mock_open.assert_called_once_with(branch.compare_url)

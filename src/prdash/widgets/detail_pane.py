@@ -9,7 +9,7 @@ from textual.containers import VerticalScroll
 from textual.widget import Widget
 from textual.widgets import Markdown, Static
 
-from gh_review_dashboard.models import CandidateBranch, PullRequest, _format_age
+from prdash.models import CandidateBranch, PullRequest, _format_age
 
 _CHECK_ICONS = {"SUCCESS": "*", "FAILURE": "!", None: "~"}
 

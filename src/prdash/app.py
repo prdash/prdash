@@ -5,17 +5,17 @@ from textual.timer import Timer
 from textual import on, work
 from textual.widgets import Footer, Header
 
-from gh_review_dashboard.config import AppConfig
-from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkError
-from gh_review_dashboard.github.client import GitHubClient
-from gh_review_dashboard.models import deduplicate_groups
-from gh_review_dashboard.screens.settings import SettingsScreen
-from gh_review_dashboard.widgets import BranchSelected, DetailPaneWidget, PRListWidget, PRSelected
+from prdash.config import AppConfig
+from prdash.exceptions import AuthError, GitHubAPIError, NetworkError
+from prdash.github.client import GitHubClient
+from prdash.models import deduplicate_groups
+from prdash.screens.settings import SettingsScreen
+from prdash.widgets import BranchSelected, DetailPaneWidget, PRListWidget, PRSelected
 
 
 class ReviewDashboardApp(App):
     CSS_PATH = "app.tcss"
-    TITLE = "GitHub Review Dashboard"
+    TITLE = "PR Dash"
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("tab", "switch_pane", "Switch Pane"),

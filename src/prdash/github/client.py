@@ -7,15 +7,15 @@ import urllib.parse
 
 import httpx
 
-from gh_review_dashboard.config import AppConfig, QueryGroupConfig, QueryGroupType
-from gh_review_dashboard.exceptions import AuthError, GitHubAPIError, NetworkError
-from gh_review_dashboard.github.queries import (
+from prdash.config import AppConfig, QueryGroupConfig, QueryGroupType
+from prdash.exceptions import AuthError, GitHubAPIError, NetworkError
+from prdash.github.queries import (
     DEFAULT_PAGE_SIZE,
     PR_SEARCH_QUERY,
     build_branch_verification_query,
     build_search_query,
 )
-from gh_review_dashboard.models import (
+from prdash.models import (
     CandidateBranch,
     PullRequest,
     QueryGroupResult,

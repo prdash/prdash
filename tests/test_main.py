@@ -6,15 +6,15 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from gh_review_dashboard.__main__ import main
-from gh_review_dashboard.exceptions import AuthError
-from gh_review_dashboard.updater import get_version
+from prdash.__main__ import main
+from prdash.exceptions import AuthError
+from prdash.updater import get_version
 
 
 class TestMain:
     def test_auth_failure_exits(self) -> None:
         with patch(
-            "gh_review_dashboard.__main__.get_github_token",
+            "prdash.__main__.get_github_token",
             side_effect=AuthError("no token"),
         ):
             with pytest.raises(SystemExit) as exc_info:
@@ -26,9 +26,9 @@ class TestMain:
         mock_wizard.wizard_state.completed = False
 
         with (
-            patch("gh_review_dashboard.__main__.get_github_token", return_value="ghp_test"),
-            patch("gh_review_dashboard.__main__.CONFIG_FILE", tmp_path / "nonexistent.toml"),
-            patch("gh_review_dashboard.__main__.SetupWizardApp", return_value=mock_wizard),
+            patch("prdash.__main__.get_github_token", return_value="ghp_test"),
+            patch("prdash.__main__.CONFIG_FILE", tmp_path / "nonexistent.toml"),
+            patch("prdash.__main__.SetupWizardApp", return_value=mock_wizard),
         ):
             with pytest.raises(SystemExit) as exc_info:
                 main()
@@ -44,12 +44,12 @@ class TestMain:
         mock_app = MagicMock()
 
         with (
-            patch("gh_review_dashboard.__main__.get_github_token", return_value="ghp_test"),
-            patch("gh_review_dashboard.__main__.CONFIG_FILE", config_file),
-            patch("gh_review_dashboard.__main__.load_config") as mock_load,
-            patch("gh_review_dashboard.__main__.create_http_client"),
-            patch("gh_review_dashboard.__main__.GitHubClient"),
-            patch("gh_review_dashboard.__main__.ReviewDashboardApp", return_value=mock_app),
+            patch("prdash.__main__.get_github_token", return_value="ghp_test"),
+            patch("prdash.__main__.CONFIG_FILE", config_file),
+            patch("prdash.__main__.load_config") as mock_load,
+            patch("prdash.__main__.create_http_client"),
+            patch("prdash.__main__.GitHubClient"),
+            patch("prdash.__main__.ReviewDashboardApp", return_value=mock_app),
         ):
             mock_load.return_value = MagicMock()
             main()
@@ -68,12 +68,12 @@ class TestMain:
         mock_app = MagicMock()
 
         with (
-            patch("gh_review_dashboard.__main__.get_github_token", return_value="ghp_test"),
-            patch("gh_review_dashboard.__main__.CONFIG_FILE", config_file),
-            patch("gh_review_dashboard.__main__.load_config") as mock_load,
-            patch("gh_review_dashboard.__main__.create_http_client"),
-            patch("gh_review_dashboard.__main__.GitHubClient"),
-            patch("gh_review_dashboard.__main__.ReviewDashboardApp", return_value=mock_app),
+            patch("prdash.__main__.get_github_token", return_value="ghp_test"),
+            patch("prdash.__main__.CONFIG_FILE", config_file),
+            patch("prdash.__main__.load_config") as mock_load,
+            patch("prdash.__main__.create_http_client"),
+            patch("prdash.__main__.GitHubClient"),
+            patch("prdash.__main__.ReviewDashboardApp", return_value=mock_app),
         ):
             mock_load.return_value = MagicMock()
             main()
@@ -84,7 +84,7 @@ class TestVersionFlag:
     def test_version_prints_and_exits(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr("sys.argv", ["ghrd", "--version"])
+        monkeypatch.setattr("sys.argv", ["prdash", "--version"])
         with pytest.raises(SystemExit) as exc_info:
             main()
         assert exc_info.value.code == 0
@@ -94,7 +94,7 @@ class TestVersionFlag:
     def test_version_short_alias(
         self, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        monkeypatch.setattr("sys.argv", ["ghrd", "-V"])
+        monkeypatch.setattr("sys.argv", ["prdash", "-V"])
         with pytest.raises(SystemExit) as exc_info:
             main()
         assert exc_info.value.code == 0
@@ -102,10 +102,10 @@ class TestVersionFlag:
         assert get_version() in captured.out
 
     def test_version_requires_no_auth(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("sys.argv", ["ghrd", "--version"])
+        monkeypatch.setattr("sys.argv", ["prdash", "--version"])
         with (
             patch(
-                "gh_review_dashboard.__main__.get_github_token",
+                "prdash.__main__.get_github_token",
                 side_effect=AssertionError("auth should not be called"),
             ),
             pytest.raises(SystemExit) as exc_info,
@@ -118,18 +118,18 @@ class TestUpdateFlag:
     def test_update_delegates_to_run_upgrade(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr("sys.argv", ["ghrd", "--update"])
-        with patch("gh_review_dashboard.__main__.run_upgrade") as mock_upgrade:
+        monkeypatch.setattr("sys.argv", ["prdash", "--update"])
+        with patch("prdash.__main__.run_upgrade") as mock_upgrade:
             main()
         mock_upgrade.assert_called_once()
 
     def test_update_requires_no_auth(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("sys.argv", ["ghrd", "--update"])
+        monkeypatch.setattr("sys.argv", ["prdash", "--update"])
         with (
             patch(
-                "gh_review_dashboard.__main__.get_github_token",
+                "prdash.__main__.get_github_token",
                 side_effect=AssertionError("auth should not be called"),
             ),
-            patch("gh_review_dashboard.__main__.run_upgrade"),
+            patch("prdash.__main__.run_upgrade"),
         ):
             main()

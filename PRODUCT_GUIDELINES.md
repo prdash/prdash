@@ -1,4 +1,4 @@
-# GitHub Review Dashboard - Product Guidelines
+# PR Dash - Product Guidelines
 
 ## Overview
 

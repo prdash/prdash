@@ -9,9 +9,9 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, ValidationError, field_validator, model_validator
 
-from gh_review_dashboard.exceptions import ConfigError
+from prdash.exceptions import ConfigError
 
-CONFIG_DIR: Path = Path.home() / ".config" / "gh-review-dashboard"
+CONFIG_DIR: Path = Path.home() / ".config" / "prdash"
 CONFIG_FILE: Path = CONFIG_DIR / "config.toml"
 
 _REPO_SLUG_RE = re.compile(r"^[^/]+/[^/]+$")
@@ -109,7 +109,7 @@ def load_config(path: Path | None = None) -> AppConfig:
     """Load and validate configuration from a TOML file.
 
     Args:
-        path: Path to the config file. Defaults to ~/.config/gh-review-dashboard/config.toml.
+        path: Path to the config file. Defaults to ~/.config/prdash/config.toml.
 
     Returns:
         Validated AppConfig instance.

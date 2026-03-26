@@ -11,7 +11,7 @@ from textual.widget import Widget
 from textual.containers import Horizontal
 from textual.widgets import ListItem, ListView, Static
 
-from gh_review_dashboard.models import CandidateBranch, PullRequest, QueryGroupResult
+from prdash.models import CandidateBranch, PullRequest, QueryGroupResult
 
 _CI_LABELS = {
     "passing": "[green]CI:pass[/green]",

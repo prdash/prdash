@@ -18,8 +18,8 @@ from pydantic import BaseModel
 from textual.app import App
 
 # Local
-from gh_review_dashboard.config import AppConfig
-from gh_review_dashboard.models import PullRequest
+from prdash.config import AppConfig
+from prdash.models import PullRequest
 ```
 
 Import order: stdlib, blank line, third-party, blank line, local.

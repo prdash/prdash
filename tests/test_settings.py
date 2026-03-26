@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from gh_review_dashboard.config import AppConfig
-from gh_review_dashboard.screens.settings import SettingsScreen
-from gh_review_dashboard.app import ReviewDashboardApp
+from prdash.config import AppConfig
+from prdash.screens.settings import SettingsScreen
+from prdash.app import ReviewDashboardApp
 
 
 def _make_config(**overrides) -> AppConfig:
@@ -103,7 +103,7 @@ class TestSettingsScreen:
 
         app = ReviewDashboardApp(config=config)
 
-        with patch("gh_review_dashboard.screens.settings.save_config") as mock_save:
+        with patch("prdash.screens.settings.save_config") as mock_save:
             async with app.run_test(size=(80, 24)) as pilot:
                 app.push_screen(
                     SettingsScreen(config), callback=result_holder.append
@@ -144,7 +144,7 @@ class TestSettingsIntegration:
         mock_client.fetch_all_groups = AsyncMock(return_value=[])
         app = ReviewDashboardApp(config=config, github_client=mock_client)
 
-        with patch("gh_review_dashboard.screens.settings.save_config"):
+        with patch("prdash.screens.settings.save_config"):
             async with app.run_test(size=(80, 24)) as pilot:
                 await pilot.press("S")
                 await pilot.pause()

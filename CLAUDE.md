@@ -1,4 +1,4 @@
-# GitHub Review Dashboard
+# PR Dash
 
 Terminal-based TUI dashboard for monitoring GitHub PRs requiring your attention.
 Tech stack: Python, Textual (TUI), httpx + GitHub GraphQL API, Pydantic v2, TOML config, uv (packaging).
@@ -6,7 +6,7 @@ Tech stack: Python, Textual (TUI), httpx + GitHub GraphQL API, Pydantic v2, TOML
 # Project Layout
 
 ```
-src/gh_review_dashboard/      # Main package
+src/prdash/                    # Main package
   __main__.py                  # Entry point (wizard/dashboard lifecycle)
   app.py                       # Textual App subclass
   config.py                    # TOML config loading/saving, Pydantic models
@@ -45,8 +45,8 @@ pyproject.toml                 # Project metadata and dependencies
 
 ```bash
 uv sync                                    # Install/update dependencies
-uv run ghrd                                # Run the app (or just `ghrd` if globally installed)
-uv run python -m gh_review_dashboard       # Run the app (alternative)
+uv run prdash                              # Run the app (or just `prdash` if globally installed)
+uv run python -m prdash                    # Run the app (alternative)
 uv run pytest                              # Run all tests
 uv run pytest tests/test_config.py         # Run a specific test file
 uv run pytest -x                           # Stop on first failure
