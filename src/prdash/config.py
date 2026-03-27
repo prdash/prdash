@@ -22,6 +22,7 @@ class QueryGroupType(str, Enum):
 
     DIRECT_REVIEWER = "direct_reviewer"
     TEAM_REVIEWER = "team_reviewer"
+    REVIEWED_BY = "reviewed_by"
     MENTIONED = "mentioned"
     AUTHORED = "authored"
     ASSIGNED = "assigned"
@@ -49,6 +50,7 @@ DEFAULT_QUERY_GROUPS: list[QueryGroupConfig] = [
     QueryGroupConfig(type=QueryGroupType.AUTHORED, name="My PRs"),
     QueryGroupConfig(type=QueryGroupType.DIRECT_REVIEWER, name="Requested Reviewer"),
     QueryGroupConfig(type=QueryGroupType.TEAM_REVIEWER, name="Team Reviewer"),
+    QueryGroupConfig(type=QueryGroupType.REVIEWED_BY, name="Reviewed by Me"),
     QueryGroupConfig(type=QueryGroupType.ASSIGNED, name="Assigned to Me"),
     QueryGroupConfig(type=QueryGroupType.MENTIONED, name="Mentioned/Involved"),
     QueryGroupConfig(

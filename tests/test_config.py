@@ -71,9 +71,10 @@ class TestLoadConfigHappyPath:
         assert config.repos == []
         assert config.poll_interval == 300
         assert config.team_slugs == []
-        assert len(config.query_groups) == 7
+        assert len(config.query_groups) == 8
         group_types = [g.type for g in config.query_groups]
         assert QueryGroupType.DIRECT_REVIEWER in group_types
+        assert QueryGroupType.REVIEWED_BY in group_types
         assert QueryGroupType.ASSIGNED in group_types
         assert QueryGroupType.LABEL in group_types
         assert QueryGroupType.READY_TO_PR in group_types

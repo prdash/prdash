@@ -140,6 +140,8 @@ def build_search_query(config: AppConfig, group: QueryGroupConfig) -> list[str]:
                 for slug in config.team_slugs:
                     queries.append(f"repo:{r} is:pr is:open team-review-requested:{org}/{slug}")
             return queries
+        case QueryGroupType.REVIEWED_BY:
+            return [f"{p} reviewed-by:{config.username}" for p in prefixes]
         case QueryGroupType.MENTIONED:
             return [f"{p} involves:{config.username}" for p in prefixes]
         case QueryGroupType.AUTHORED:

@@ -129,6 +129,12 @@ class TestBuildSearchQuery:
         queries = build_search_query(config, group)
         assert queries == ["repo:myorg/myrepo is:pr is:open author:testuser"]
 
+    def test_reviewed_by(self) -> None:
+        config = _make_config()
+        group = QueryGroupConfig(type=QueryGroupType.REVIEWED_BY, name="Reviewed")
+        queries = build_search_query(config, group)
+        assert queries == ["repo:myorg/myrepo is:pr is:open reviewed-by:testuser"]
+
     def test_assigned(self) -> None:
         config = _make_config()
         group = QueryGroupConfig(type=QueryGroupType.ASSIGNED, name="Assigned")
