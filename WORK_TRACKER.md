@@ -122,6 +122,83 @@ Depends on Phase 2 (T04), Phase 3 (T06, T07).
 | T34 | Fix "Ready to PR" for large repos (replace bulk refs query with Events API + GraphQL batch verification) | T30 | completed |
 | T35 | Branch detail pane: commits & file changes (enrich candidate branches with compare API data, render in detail pane) | T30, T34 | completed |
 
+## Phase 12: Navigation & Discoverability
+
+Depends on Phase 3 (T05, T06), Phase 4 (T08).
+
+| ID | Task | Dependencies | Status |
+|---|---|---|---|
+| T40 | Command Palette (Ctrl+P fuzzy command search) | T05 | not started |
+| T41 | Help Overlay (`?` keybinding shows all shortcuts) | T05, T08 | not started |
+| T42 | Fuzzy Search/Filter Bar (`/` to filter PRs by title/author/repo) | T06 | not started |
+| T43 | PR Sort Options (sort within groups by age, CI, review, size) | T06, T40, T49 | not started |
+
+## Phase 13: Polish & Feel
+
+Depends on Phase 3 (T06), Phase 4 (T10), Phase 12 (T40).
+
+| ID | Task | Dependencies | Status |
+|---|---|---|---|
+| T44 | Toast Notifications (detect new PRs, CI/review changes on refresh) | T10 | not started |
+| T45 | Loading States (loading indicator during refresh) | T06, T10 | not started |
+| T46 | Theme Support (Textual built-in themes, persist in config) | T40 | not started |
+| T47 | Persistent Group Collapse State (save/restore across sessions) | T06 | not started |
+
+## Phase 14: Workflow Actions
+
+Depends on Phase 3 (T06).
+
+| ID | Task | Dependencies | Status |
+|---|---|---|---|
+| T48 | One-Key PR Checkout (`c` to checkout PR branch via gh CLI) | T06 | not started |
+
+## Phase 15: Data Enrichment
+
+Depends on Phase 2 (T04), Phase 3 (T06, T07), Phase 10 (T38).
+
+| ID | Task | Dependencies | Status |
+|---|---|---|---|
+| T49 | PR Size Indicators (additions/deletions on PR rows) | T04, T06 | not started |
+| T50 | Merge Conflict Badges (surface DIRTY/BLOCKED/BEHIND states) | T06, T38 | not started |
+| T51 | Comment Count (total comments on PR rows and detail pane) | T04, T06, T07 | not started |
+
+## Phase 16: Future — Workflow Actions
+
+| ID | Task | Dependencies | Status |
+|---|---|---|---|
+| T52 | Copy PR URL/Number to Clipboard (`y`/`Y` keybindings) | T06 | not started |
+| T53 | Quick Approve + Merge (approve and/or merge via gh CLI) | T06, T48 | not started |
+| T54 | Inline Diff Preview (show PR diff via gh pr diff + delta) | T06, T07 | not started |
+| T55 | Custom User-Defined Shell Actions (templated commands in config) | T06, T48 | not started |
+| T56 | Watch CI Checks Live (real-time CI polling for selected PR) | T07, T10 | not started |
+| T57 | Open in Editor (open PR changed files in $EDITOR) | T06, T48 | not started |
+
+## Phase 17: Future — Data & Features
+
+| ID | Task | Dependencies | Status |
+|---|---|---|---|
+| T58 | GitHub Notifications Integration (unread notifications section) | T04, T06 | not started |
+| T59 | Review Wait Time / Stale Badge (time since review requested) | T04, T06 | not started |
+| T60 | Linked Issues Display (show closingIssuesReferences) | T04, T07 | not started |
+| T61 | Colored Label Badges (render labels with GitHub hex colors) | T04, T06, T07 | not started |
+| T62 | Deployment Status (preview environment status on PRs) | T04, T07 | not started |
+| T63 | Required Reviewers / CODEOWNERS Awareness | T04, T07 | not started |
+| T64 | Auto-Merge Status / Toggle (show and enable auto-merge) | T04, T06 | not started |
+| T65 | Comment Unread Indicator (track new comments since last view) | T51, T47 | not started |
+| T66 | Issues Section (assigned/mentioned issues alongside PRs) | T04, T06 | not started |
+| T67 | Stacked PR Awareness (detect PR dependency chains) | T04, T06 | not started |
+
+## Phase 18: Future — UX & Polish
+
+| ID | Task | Dependencies | Status |
+|---|---|---|---|
+| T68 | Multiple Layout Modes (list-only, detail-only, split toggle) | T05, T06, T07 | not started |
+| T69 | Customizable Keybindings (user-defined key mappings in config) | T08, T02 | not started |
+| T70 | Multiple Config Profiles (--config flag, profile switcher) | T02 | not started |
+| T71 | Sparkline Activity Graph (mini activity visualization in detail) | T07 | not started |
+| T72 | Web Mode via textual-serve (--web flag for browser access) | T05 | not started |
+| T73 | Desktop OS Notifications (native notifications for new PRs) | T44 | not started |
+
 ## Feature Coverage
 
 All features from PRODUCT_GUIDELINES.md are covered:
