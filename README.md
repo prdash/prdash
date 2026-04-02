@@ -17,6 +17,8 @@ brew tap prdash/prdash
 brew install prdash
 ```
 
+> **Note:** You may see `Failed changing dylib ID` or `Failed to fix install linkage` warnings during installation. These are cosmetic — Homebrew tries to rewrite dylib IDs in pydantic-core's compiled extensions but the Mach-O headers lack sufficient padding. The app works correctly despite these warnings.
+
 ### From PyPI
 
 ```bash
