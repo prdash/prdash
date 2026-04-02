@@ -6,6 +6,7 @@ import asyncio
 import webbrowser
 
 from rich.markup import escape
+from rich.text import Text
 from textual.binding import Binding
 from textual.message import Message
 from textual.widget import Widget
@@ -99,18 +100,31 @@ class PRRow(ListItem):
 
         # Left content: metadata (line 1) + title (line 2)
         repo_prefix = f"{escape(self.pr.repo_slug)} " if self.pr.repo_slug else ""
-        meta_line = f"[dim]{repo_prefix}#{self.pr.number} by @{escape(self.pr.author)} · {self.pr.age_display} ago[/dim]"
+        meta_markup = f"[dim]{repo_prefix}#{self.pr.number} by @{escape(self.pr.author)}[/dim]"
 
         draft_badge = " [cyan]DRAFT[/cyan]" if self.pr.is_draft else ""
         merge_badge = _MERGE_STATE_BADGES.get(self.pr.merge_state_status, "")
-        title_line = f"[bold]{escape(self.pr.title)}[/bold]{draft_badge}{merge_badge}"
+        title_markup = f"[bold]{escape(self.pr.title)}[/bold]{draft_badge}{merge_badge}"
 
-        # Right content: status icons
+        # Use Rich Text with no_wrap to prevent line wrapping + ellipsis truncation
+        meta_text = Text.from_markup(meta_markup)
+        meta_text.no_wrap = True
+        meta_text.overflow = "ellipsis"
+        title_text = Text.from_markup(title_markup)
+        title_text.no_wrap = True
+        title_text.overflow = "ellipsis"
+        content = Text()
+        content.append_text(meta_text)
+        content.append("\n")
+        content.append_text(title_text)
+
+        # Right content: age + status icons
+        age = f"[dim]{self.pr.age_display}[/dim]"
         size_segment = f"[green]+{_fmt_size(self.pr.additions)}[/green][dim]/[/dim][red]-{_fmt_size(self.pr.deletions)}[/red]"
         comment_segment = f" {self.pr.comment_count}{ICONS['comment']}" if self.pr.comment_count else ""
         ci_icon = ICONS.get(f"ci_{self.pr.ci_status}", ICONS["ci_none"])
         review_icon = ICONS.get(f"review_{self.pr.review_status}", ICONS["review_none"])
-        status_col = f"{size_segment}{comment_segment} {ci_icon} {review_icon}"
+        status_col = f"{age} {size_segment}{comment_segment} {ci_icon} {review_icon}"
 
         # CSS classes
         label_classes = "pr-row-label pr-row-new" if self.is_new else "pr-row-label"
@@ -122,7 +136,7 @@ class PRRow(ListItem):
 
         with Horizontal(classes=container_classes):
             yield Static(marker_text, classes="pr-row-marker")
-            yield Static(f"{meta_line}\n{title_line}", classes=label_classes)
+            yield Static(content, classes=label_classes)
             yield Static(status_col, classes="pr-row-status")
 
 
@@ -143,12 +157,25 @@ class BranchRow(ListItem):
 
     def compose(self):
         repo_prefix = f"{escape(self.branch.repo_slug)} " if self.branch.repo_slug else ""
-        meta_line = f"[dim]{repo_prefix}{self.branch.age_display} ago[/dim]"
-        title_line = f"[bold]{escape(self.branch.name)}[/bold] · [cyan]ready to PR[/cyan]"
+        meta_markup = f"[dim]{repo_prefix}[/dim]"
+        title_markup = f"[bold]{escape(self.branch.name)}[/bold] · [cyan]ready to PR[/cyan]"
+
+        meta_text = Text.from_markup(meta_markup)
+        meta_text.no_wrap = True
+        meta_text.overflow = "ellipsis"
+        title_text = Text.from_markup(title_markup)
+        title_text.no_wrap = True
+        title_text.overflow = "ellipsis"
+        content = Text()
+        content.append_text(meta_text)
+        content.append("\n")
+        content.append_text(title_text)
+
+        age = f"[dim]{self.branch.age_display}[/dim]"
         with Horizontal(classes="pr-row-container"):
             yield Static(" ", classes="pr-row-marker")
-            yield Static(f"{meta_line}\n{title_line}", classes="pr-row-label")
-            yield Static("", classes="pr-row-status")
+            yield Static(content, classes="pr-row-label")
+            yield Static(age, classes="pr-row-status")
 
 
 class NavigableListView(ListView):

@@ -345,12 +345,13 @@ async def test_pr_row_is_multiline(sample_pr):
         rows = list(widget.query(PRRow))
         from textual.widgets import Static
         label_static = rows[0].query_one(".pr-row-label", Static)
-        content = str(label_static.content)
-        assert "\n" in content
+        content = str(label_static.render())
         assert sample_pr.title in content
         assert f"@{sample_pr.author}" in content
         assert f"#{sample_pr.number}" in content
-        assert "ago" in content
+        # age is in the status column
+        status_static = rows[0].query_one(".pr-row-status", Static)
+        assert sample_pr.age_display in str(status_static.content)
 
 
 @pytest.mark.asyncio
@@ -870,8 +871,8 @@ async def test_branch_row_renders_name_and_label():
 
 
 @pytest.mark.asyncio
-async def test_branch_row_has_empty_status_column():
-    """BranchRow should have an empty .pr-row-status column."""
+async def test_branch_row_status_column_shows_age():
+    """BranchRow .pr-row-status should show the branch age."""
     app = _make_app()
     branch = _make_branch()
     async with app.run_test(size=(120, 40)) as pilot:
@@ -889,7 +890,7 @@ async def test_branch_row_has_empty_status_column():
         assert len(rows) == 1
         from textual.widgets import Static
         status = rows[0].query_one(".pr-row-status", Static)
-        assert str(status.content).strip() == ""
+        assert branch.age_display in str(status.content)
 
 
 @pytest.mark.asyncio
