@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from prdash.app import ReviewDashboardApp
+from prdash.app import PRDashCommandProvider, ReviewDashboardApp
 from prdash.config import AppConfig, QueryGroupConfig, QueryGroupType
 from prdash.exceptions import AuthError, GitHubAPIError, NetworkError
 from prdash.github.client import GitHubClient
@@ -370,3 +370,31 @@ class TestNotifyChanges:
             app._notify_changes(groups)
             # pr_map should be updated with new status
             assert app._previous_pr_map["PR_1"].ci_status == "passing"
+
+
+# --- Command palette ---
+
+
+def test_command_provider_registered():
+    """COMMANDS should include PRDashCommandProvider."""
+    assert PRDashCommandProvider in ReviewDashboardApp.COMMANDS
+
+
+@pytest.mark.asyncio
+async def test_jump_to_group_scrolls_list(sample_pr, sample_pr_minimal):
+    """action_jump_to_group should scroll the list view to the named group."""
+    groups = [
+        QueryGroupResult(group_name="Group A", group_type="test", pull_requests=[sample_pr]),
+        QueryGroupResult(group_name="Group B", group_type="test", pull_requests=[sample_pr_minimal]),
+    ]
+    app, _ = _make_app(groups)
+    async with app.run_test(size=(120, 40)) as pilot:
+        await pilot.pause()
+        await pilot.pause()
+        app.action_jump_to_group("Group B")
+        await pilot.pause()
+        from prdash.widgets.pr_list import NavigableListView, GroupHeaderItem
+        list_view = app.query_one(NavigableListView)
+        item = list_view.highlighted_child
+        assert isinstance(item, GroupHeaderItem)
+        assert item.group_name == "Group B"

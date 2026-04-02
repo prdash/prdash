@@ -1,5 +1,6 @@
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.command import DiscoveryHit, Hit, Hits, Provider
 from textual.containers import Horizontal
 from textual.timer import Timer
 from textual import on, work
@@ -13,11 +14,92 @@ from prdash.models import PullRequest, QueryGroupResult, deduplicate_groups, rec
 _MAX_TOASTS_PER_REFRESH = 5
 from prdash.screens.settings import SettingsScreen
 from prdash.widgets import BranchSelected, DetailPaneWidget, PRListWidget, PRSelected
+from prdash.widgets.pr_list import GroupHeaderItem, NavigableListView
+
+
+class PRDashCommandProvider(Provider):
+    """Command palette provider for PR Dash actions."""
+
+    async def discover(self) -> Hits:
+        """Yield commands shown before the user types."""
+        app = self.app
+        assert isinstance(app, ReviewDashboardApp)
+
+        yield DiscoveryHit(
+            display="Refresh Data",
+            command=app.action_refresh,
+            help="Fetch latest PR data from GitHub",
+        )
+        yield DiscoveryHit(
+            display="Open Settings",
+            command=app.action_settings,
+            help="Open the settings screen",
+        )
+        yield DiscoveryHit(
+            display="Open Query Groups",
+            command=app.action_query_groups,
+            help="Configure query groups",
+        )
+
+        # Jump to group commands
+        pr_list = app.query_one(PRListWidget)
+        for group in pr_list._groups:
+            group_name = group.group_name
+
+            def make_jump(name: str):
+                def jump() -> None:
+                    app.action_jump_to_group(name)
+                return jump
+
+            yield DiscoveryHit(
+                display=f"Jump to: {group_name}",
+                command=make_jump(group_name),
+                help=f"Scroll to the {group_name} group",
+            )
+
+    async def search(self, query: str) -> Hits:
+        """Yield commands matching the search query."""
+        matcher = self.matcher(query)
+        app = self.app
+        assert isinstance(app, ReviewDashboardApp)
+
+        commands: list[tuple[str, callable, str]] = [
+            ("Refresh Data", app.action_refresh, "Fetch latest PR data from GitHub"),
+            ("Open Settings", app.action_settings, "Open the settings screen"),
+            ("Open Query Groups", app.action_query_groups, "Configure query groups"),
+        ]
+
+        # Jump to group commands
+        pr_list = app.query_one(PRListWidget)
+        for group in pr_list._groups:
+            group_name = group.group_name
+
+            def make_jump(name: str):
+                def jump() -> None:
+                    app.action_jump_to_group(name)
+                return jump
+
+            commands.append((
+                f"Jump to: {group_name}",
+                make_jump(group_name),
+                f"Scroll to the {group_name} group",
+            ))
+
+        for display, command, help_text in commands:
+            score = matcher.match(display)
+            if score > 0:
+                yield Hit(
+                    score=score,
+                    match_display=matcher.highlight(display),
+                    command=command,
+                    help=help_text,
+                )
 
 
 class ReviewDashboardApp(App):
     CSS_PATH = "app.tcss"
     TITLE = "PR Dash"
+    COMMANDS = {PRDashCommandProvider}
     BINDINGS = [
         Binding("q", "quit", "Quit"),
         Binding("tab", "switch_pane", "Switch Pane"),
@@ -157,6 +239,20 @@ class ReviewDashboardApp(App):
             self.notify(msg, severity=severity)  # type: ignore[arg-type]
 
         self._previous_pr_map = new_pr_map
+
+    def action_jump_to_group(self, group_name: str) -> None:
+        """Scroll the PR list to a specific group header."""
+        pr_list = self.query_one(PRListWidget)
+        list_view = pr_list.query_one(NavigableListView)
+        for i, child in enumerate(list_view.children):
+            if isinstance(child, GroupHeaderItem) and child.group_name == group_name:
+                list_view.index = i
+                list_view.focus()
+                break
+
+    def action_query_groups(self) -> None:
+        """Open the query groups screen via settings."""
+        self.action_settings()
 
     def action_settings(self) -> None:
         """Open the settings screen."""
