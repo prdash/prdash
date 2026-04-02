@@ -79,11 +79,12 @@ class ReviewDashboardApp(App):
         """Fetch fresh data from GitHub and update the UI."""
         if self.github_client is None or self.config is None:
             return
+        pr_list = self.query_one(PRListWidget)
+        pr_list.loading = True
         try:
             groups, errors = await self.github_client.fetch_all_groups(self.config)
             groups = reclassify_review_groups(groups, self.config.username)
             groups = deduplicate_groups(groups)
-            pr_list = self.query_one(PRListWidget)
             pr_list.update_data(groups, seen_ids=self._seen_pr_ids, username=self.config.username)
             new_ids = {pr.id for group in groups for pr in group.pull_requests}
             self._seen_pr_ids = new_ids
@@ -95,6 +96,8 @@ class ReviewDashboardApp(App):
             self.notify(str(e), severity="warning", timeout=8)
         except Exception as e:
             self.notify(f"Unexpected error: {e}", severity="error", timeout=10)
+        finally:
+            pr_list.loading = False
 
     def action_settings(self) -> None:
         """Open the settings screen."""
