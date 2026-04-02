@@ -5,8 +5,9 @@ from unittest.mock import AsyncMock, patch
 import pytest
 
 from prdash.app import ReviewDashboardApp
-from prdash.models import CandidateBranch, PullRequest, QueryGroupResult, Reviewer
+from prdash.models import CandidateBranch, CheckRun, PullRequest, QueryGroupResult, Reviewer
 from prdash.widgets.pr_list import (
+    ICONS,
     BranchRow,
     BranchSelected,
     EmptyGroupItem,
@@ -15,6 +16,7 @@ from prdash.widgets.pr_list import (
     PRListWidget,
     PRRow,
     PRSelected,
+    _fmt_size,
 )
 
 
@@ -285,7 +287,7 @@ async def test_enter_on_pr_row_opens_browser(sample_pr):
 
 @pytest.mark.asyncio
 async def test_pr_row_renders_ci_label(sample_pr):
-    """PR with failing CI should show CI:fail in content."""
+    """PR with failing CI should show ✗ icon in status column."""
     app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
@@ -300,13 +302,13 @@ async def test_pr_row_renders_ci_label(sample_pr):
 
         rows = list(widget.query(PRRow))
         from textual.widgets import Static
-        label_static = rows[0].query_one(".pr-row-label", Static)
-        assert "CI:fail" in str(label_static.content)
+        status_static = rows[0].query_one(".pr-row-status", Static)
+        assert "✗" in str(status_static.content)
 
 
 @pytest.mark.asyncio
 async def test_pr_row_renders_review_label(sample_pr):
-    """PR with pending review should show Rev:pend in content."""
+    """PR with pending review should show ○ icon in status column."""
     app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
@@ -321,13 +323,13 @@ async def test_pr_row_renders_review_label(sample_pr):
 
         rows = list(widget.query(PRRow))
         from textual.widgets import Static
-        label_static = rows[0].query_one(".pr-row-label", Static)
-        assert "Rev:pend" in str(label_static.content)
+        status_static = rows[0].query_one(".pr-row-status", Static)
+        assert "○" in str(status_static.content)
 
 
 @pytest.mark.asyncio
 async def test_pr_row_is_multiline(sample_pr):
-    """PR row should render as two lines with title and @author."""
+    """PR row should render as two lines: metadata (dim) then title (bold)."""
     app = _make_app()
     async with app.run_test(size=(120, 40)) as pilot:
         widget = pilot.app.query_one(PRListWidget)
@@ -347,6 +349,8 @@ async def test_pr_row_is_multiline(sample_pr):
         assert "\n" in content
         assert sample_pr.title in content
         assert f"@{sample_pr.author}" in content
+        assert f"#{sample_pr.number}" in content
+        assert "ago" in content
 
 
 @pytest.mark.asyncio
@@ -636,9 +640,8 @@ async def test_approved_row_gets_css_class():
 
         rows = list(widget.query(PRRow))
         assert rows[0].approved_by_me is True
-        from textual.widgets import Static
-        label = rows[0].query_one(".pr-row-label", Static)
-        assert "pr-row-approved" in label.classes
+        container = rows[0].query_one(".pr-row-container")
+        assert "pr-row-approved" in container.classes
 
 
 @pytest.mark.asyncio
@@ -656,9 +659,8 @@ async def test_authored_group_rows_no_approved_class():
 
         rows = list(widget.query(PRRow))
         assert rows[0].approved_by_me is False
-        from textual.widgets import Static
-        label = rows[0].query_one(".pr-row-label", Static)
-        assert "pr-row-approved" not in label.classes
+        container = rows[0].query_one(".pr-row-container")
+        assert "pr-row-approved" not in container.classes
 
 
 # --- Arrow key collapse/expand tests (T29) ---
@@ -825,9 +827,8 @@ async def test_no_username_no_approved_class():
 
         rows = list(widget.query(PRRow))
         assert rows[0].approved_by_me is False
-        from textual.widgets import Static
-        label = rows[0].query_one(".pr-row-label", Static)
-        assert "pr-row-approved" not in label.classes
+        container = rows[0].query_one(".pr-row-container")
+        assert "pr-row-approved" not in container.classes
 
 
 # --- BranchRow tests (T30) ---
@@ -866,6 +867,29 @@ async def test_branch_row_renders_name_and_label():
         content = str(label.content)
         assert "feat/test" in content
         assert "ready to PR" in content
+
+
+@pytest.mark.asyncio
+async def test_branch_row_has_empty_status_column():
+    """BranchRow should have an empty .pr-row-status column."""
+    app = _make_app()
+    branch = _make_branch()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Ready to PR",
+                group_type="ready_to_pr",
+                branches=[branch],
+            ),
+        ])
+        await pilot.pause()
+
+        rows = list(widget.query(BranchRow))
+        assert len(rows) == 1
+        from textual.widgets import Static
+        status = rows[0].query_one(".pr-row-status", Static)
+        assert str(status.content).strip() == ""
 
 
 @pytest.mark.asyncio
@@ -1043,9 +1067,8 @@ async def test_clean_pr_in_authored_group_gets_ready_to_merge_class():
 
         rows = list(widget.query(PRRow))
         assert rows[0].ready_to_merge is True
-        from textual.widgets import Static
-        label = rows[0].query_one(".pr-row-label", Static)
-        assert "pr-row-ready-to-merge" in label.classes
+        container = rows[0].query_one(".pr-row-container")
+        assert "pr-row-ready-to-merge" in container.classes
 
 
 @pytest.mark.asyncio
@@ -1062,9 +1085,8 @@ async def test_clean_pr_in_non_authored_group_no_ready_class():
 
         rows = list(widget.query(PRRow))
         assert rows[0].ready_to_merge is False
-        from textual.widgets import Static
-        label = rows[0].query_one(".pr-row-label", Static)
-        assert "pr-row-ready-to-merge" not in label.classes
+        container = rows[0].query_one(".pr-row-container")
+        assert "pr-row-ready-to-merge" not in container.classes
 
 
 @pytest.mark.asyncio
@@ -1081,9 +1103,8 @@ async def test_blocked_pr_in_authored_group_no_ready_class():
 
         rows = list(widget.query(PRRow))
         assert rows[0].ready_to_merge is False
-        from textual.widgets import Static
-        label = rows[0].query_one(".pr-row-label", Static)
-        assert "pr-row-ready-to-merge" not in label.classes
+        container = rows[0].query_one(".pr-row-container")
+        assert "pr-row-ready-to-merge" not in container.classes
 
 
 @pytest.mark.asyncio
@@ -1278,3 +1299,154 @@ async def test_checkout_pr_calls_gh(sample_pr):
             assert str(sample_pr.number) in args
 
 
+# --- _fmt_size unit tests ---
+
+
+def test_fmt_size_zero():
+    assert _fmt_size(0) == "0"
+
+
+def test_fmt_size_small():
+    assert _fmt_size(42) == "42"
+
+
+def test_fmt_size_boundary():
+    assert _fmt_size(999) == "999"
+
+
+def test_fmt_size_thousand():
+    assert _fmt_size(1000) == "1.0k"
+
+
+def test_fmt_size_mid():
+    assert _fmt_size(1200) == "1.2k"
+
+
+def test_fmt_size_large():
+    assert _fmt_size(15000) == "15k"
+
+
+def test_icons_dict_has_expected_keys():
+    expected = {
+        "ci_passing", "ci_failing", "ci_pending", "ci_none",
+        "review_approved", "review_changes", "review_pending", "review_none",
+        "comment",
+    }
+    assert set(ICONS.keys()) == expected
+
+
+# --- Status column integration tests (T74) ---
+
+
+@pytest.mark.asyncio
+async def test_pr_row_ci_passing_icon():
+    """PR with passing CI shows ✓ icon in status column."""
+    from datetime import UTC, datetime, timedelta
+    pr = PullRequest(
+        id="PR_CI", number=10, title="CI test", author="dev",
+        url="http://x/10", created_at=datetime.now(UTC) - timedelta(hours=1),
+        checks=[CheckRun(name="test", status="COMPLETED", conclusion="SUCCESS")],
+    )
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(group_name="T", group_type="test", pull_requests=[pr]),
+        ])
+        await pilot.pause()
+        rows = list(widget.query(PRRow))
+        from textual.widgets import Static
+        status = rows[0].query_one(".pr-row-status", Static)
+        assert "✓" in str(status.content)
+
+
+@pytest.mark.asyncio
+async def test_pr_row_review_approved_icon():
+    """PR with approved review shows ✓ icon in status column."""
+    from datetime import UTC, datetime, timedelta
+    pr = PullRequest(
+        id="PR_RA", number=11, title="Approved", author="dev",
+        url="http://x/11", created_at=datetime.now(UTC) - timedelta(hours=1),
+        reviewers=[Reviewer(login="x", state="APPROVED")],
+    )
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(group_name="T", group_type="test", pull_requests=[pr]),
+        ])
+        await pilot.pause()
+        rows = list(widget.query(PRRow))
+        from textual.widgets import Static
+        status = rows[0].query_one(".pr-row-status", Static)
+        assert "✓" in str(status.content)
+
+
+@pytest.mark.asyncio
+async def test_pr_row_comment_count_shown():
+    """PR with comments shows comment count + ✉ icon in status column."""
+    from datetime import UTC, datetime, timedelta
+    pr = PullRequest(
+        id="PR_C", number=12, title="Comments", author="dev",
+        url="http://x/12", created_at=datetime.now(UTC) - timedelta(hours=1),
+        comment_count=5,
+    )
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(group_name="T", group_type="test", pull_requests=[pr]),
+        ])
+        await pilot.pause()
+        rows = list(widget.query(PRRow))
+        from textual.widgets import Static
+        status = rows[0].query_one(".pr-row-status", Static)
+        content = str(status.content)
+        assert "5" in content
+        assert "✉" in content
+
+
+@pytest.mark.asyncio
+async def test_pr_row_no_comments_no_icon():
+    """PR with 0 comments should not show comment icon in status column."""
+    from datetime import UTC, datetime, timedelta
+    pr = PullRequest(
+        id="PR_NC", number=13, title="No comments", author="dev",
+        url="http://x/13", created_at=datetime.now(UTC) - timedelta(hours=1),
+        comment_count=0,
+    )
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(group_name="T", group_type="test", pull_requests=[pr]),
+        ])
+        await pilot.pause()
+        rows = list(widget.query(PRRow))
+        from textual.widgets import Static
+        status = rows[0].query_one(".pr-row-status", Static)
+        assert "✉" not in str(status.content)
+
+
+@pytest.mark.asyncio
+async def test_pr_row_size_abbreviated_in_status():
+    """PR with large additions should show abbreviated size in status column."""
+    from datetime import UTC, datetime, timedelta
+    pr = PullRequest(
+        id="PR_SZ", number=14, title="Big PR", author="dev",
+        url="http://x/14", created_at=datetime.now(UTC) - timedelta(hours=1),
+        additions=1200, deletions=800,
+    )
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(group_name="T", group_type="test", pull_requests=[pr]),
+        ])
+        await pilot.pause()
+        rows = list(widget.query(PRRow))
+        from textual.widgets import Static
+        status = rows[0].query_one(".pr-row-status", Static)
+        content = str(status.content)
+        assert "1.2k" in content
+        assert "800" in content

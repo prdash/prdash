@@ -4,3 +4,4 @@ __pycache__/
 dist/
 *.egg-info/
 src/prdash/_version.py
+.superpowers/

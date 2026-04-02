@@ -38,8 +38,15 @@
 
 .pr-row-label {
     padding: 0 1 0 0;
-    height: auto;
+    height: 2;
     width: 1fr;
+    overflow: hidden;
+}
+
+.pr-row-status {
+    width: 24;
+    height: 2;
+    text-align: right;
 }
 
 .group-header-label {
@@ -66,11 +73,11 @@ GroupHeaderItem.-highlight .group-header-label {
     color: $accent;
 }
 
-.pr-row-approved {
+.pr-row-container.pr-row-approved {
     background: $success 15%;
 }
 
-.pr-row-ready-to-merge {
+.pr-row-container.pr-row-ready-to-merge {
     background: $success 15%;
 }
 

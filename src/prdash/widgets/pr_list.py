@@ -15,23 +15,33 @@ from textual.widgets import Input, ListItem, ListView, Static
 from prdash.models import CandidateBranch, PullRequest, QueryGroupResult
 from prdash.state import get_collapsed_groups, set_collapsed_groups
 
-_CI_LABELS = {
-    "passing": "[green]CI:pass[/green]",
-    "failing": "[red]CI:fail[/red]",
-    "pending": "[yellow]CI:pend[/yellow]",
-    "none": "[dim]CI:--[/dim]",
-}
-_REVIEW_LABELS = {
-    "approved": "[green]Rev:ok[/green]",
-    "changes_requested": "[red]Rev:chg[/red]",
-    "pending": "[yellow]Rev:pend[/yellow]",
-    "none": "[dim]Rev:--[/dim]",
-}
 _MERGE_STATE_BADGES: dict[str, str] = {
-    "DIRTY": " · [red]CONFLICT[/red]",
-    "BLOCKED": " · [yellow]BLOCKED[/yellow]",
-    "BEHIND": " · [yellow]BEHIND[/yellow]",
+    "DIRTY": " [red]CONFLICT[/red]",
+    "BLOCKED": " [yellow]BLOCKED[/yellow]",
+    "BEHIND": " [yellow]BEHIND[/yellow]",
 }
+
+ICONS: dict[str, str] = {
+    "ci_passing": "[green]✓[/green]",
+    "ci_failing": "[red]✗[/red]",
+    "ci_pending": "[yellow]◍[/yellow]",
+    "ci_none": "[dim]–[/dim]",
+    "review_approved": "[green]✓[/green]",
+    "review_changes": "[red]✗[/red]",
+    "review_pending": "[yellow]○[/yellow]",
+    "review_none": "[dim]–[/dim]",
+    "comment": "✉",
+}
+
+
+def _fmt_size(n: int) -> str:
+    """Abbreviate large line counts: 1200 -> '1.2k', 15000 -> '15k'."""
+    if n < 1000:
+        return str(n)
+    k = n / 1000
+    if k < 10:
+        return f"{k:.1f}k"
+    return f"{int(k)}k"
 
 
 class PRSelected(Message):
@@ -85,24 +95,35 @@ class PRRow(ListItem):
         super().__init__(**kwargs)
 
     def compose(self):
-        ci_label = _CI_LABELS.get(self.pr.ci_status, "[dim]CI:--[/dim]")
-        review_label = _REVIEW_LABELS.get(self.pr.review_status, "[dim]Rev:--[/dim]")
         marker_text = "[bold]●[/bold]" if self.is_new else " "
-        repo_prefix = f"[dim]{escape(self.pr.repo_slug)}[/dim]  " if self.pr.repo_slug else ""
-        title_line = f"{repo_prefix}{escape(self.pr.title)}"
-        draft_segment = " · [cyan]DRAFT[/cyan]" if self.pr.is_draft else ""
+
+        # Left content: metadata (line 1) + title (line 2)
+        repo_prefix = f"{escape(self.pr.repo_slug)} " if self.pr.repo_slug else ""
+        meta_line = f"[dim]{repo_prefix}#{self.pr.number} by @{escape(self.pr.author)} · {self.pr.age_display} ago[/dim]"
+
+        draft_badge = " [cyan]DRAFT[/cyan]" if self.pr.is_draft else ""
         merge_badge = _MERGE_STATE_BADGES.get(self.pr.merge_state_status, "")
-        size_segment = f" · [green]+{self.pr.additions}[/green][dim]/[/dim][red]-{self.pr.deletions}[/red]"
-        comment_segment = f" · [dim]{self.pr.comment_count}💬[/dim]" if self.pr.comment_count else ""
-        meta_line = f"[dim]@{escape(self.pr.author)} · {self.pr.age_display}[/dim]{draft_segment}{merge_badge} · {ci_label} · {review_label}{size_segment}{comment_segment}"
-        classes = "pr-row-label pr-row-new" if self.is_new else "pr-row-label"
+        title_line = f"[bold]{escape(self.pr.title)}[/bold]{draft_badge}{merge_badge}"
+
+        # Right content: status icons
+        size_segment = f"[green]+{_fmt_size(self.pr.additions)}[/green][dim]/[/dim][red]-{_fmt_size(self.pr.deletions)}[/red]"
+        comment_segment = f" {self.pr.comment_count}{ICONS['comment']}" if self.pr.comment_count else ""
+        ci_icon = ICONS.get(f"ci_{self.pr.ci_status}", ICONS["ci_none"])
+        review_icon = ICONS.get(f"review_{self.pr.review_status}", ICONS["review_none"])
+        status_col = f"{size_segment}{comment_segment} {ci_icon} {review_icon}"
+
+        # CSS classes
+        label_classes = "pr-row-label pr-row-new" if self.is_new else "pr-row-label"
+        container_classes = "pr-row-container"
         if self.approved_by_me:
-            classes += " pr-row-approved"
+            container_classes += " pr-row-approved"
         if self.ready_to_merge:
-            classes += " pr-row-ready-to-merge"
-        with Horizontal(classes="pr-row-container"):
+            container_classes += " pr-row-ready-to-merge"
+
+        with Horizontal(classes=container_classes):
             yield Static(marker_text, classes="pr-row-marker")
-            yield Static(f"{title_line}\n{meta_line}", classes=classes)
+            yield Static(f"{meta_line}\n{title_line}", classes=label_classes)
+            yield Static(status_col, classes="pr-row-status")
 
 
 class BranchSelected(Message):
@@ -121,12 +142,13 @@ class BranchRow(ListItem):
         super().__init__(**kwargs)
 
     def compose(self):
-        repo_prefix = f"[dim]{escape(self.branch.repo_slug)}[/dim]  " if self.branch.repo_slug else ""
-        title_line = f"{repo_prefix}{escape(self.branch.name)}"
-        meta_line = f"[dim]{self.branch.age_display}[/dim] · [cyan]ready to PR[/cyan]"
+        repo_prefix = f"{escape(self.branch.repo_slug)} " if self.branch.repo_slug else ""
+        meta_line = f"[dim]{repo_prefix}{self.branch.age_display} ago[/dim]"
+        title_line = f"[bold]{escape(self.branch.name)}[/bold] · [cyan]ready to PR[/cyan]"
         with Horizontal(classes="pr-row-container"):
             yield Static(" ", classes="pr-row-marker")
-            yield Static(f"{title_line}\n{meta_line}", classes="pr-row-label")
+            yield Static(f"{meta_line}\n{title_line}", classes="pr-row-label")
+            yield Static("", classes="pr-row-status")
 
 
 class NavigableListView(ListView):
