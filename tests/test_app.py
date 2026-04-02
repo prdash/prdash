@@ -398,3 +398,29 @@ async def test_jump_to_group_scrolls_list(sample_pr, sample_pr_minimal):
         item = list_view.highlighted_child
         assert isinstance(item, GroupHeaderItem)
         assert item.group_name == "Group B"
+
+
+# --- Help overlay ---
+
+
+def test_help_binding_exists():
+    """App should have a ? binding."""
+    app = _make_plain_app()
+    keys = [b.key for b in app.BINDINGS]
+    assert "question_mark" in keys
+
+
+@pytest.mark.asyncio
+async def test_help_screen_opens_and_closes():
+    """Pressing ? should open the help screen, Escape closes it."""
+    app = _make_plain_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        from prdash.screens.help import HelpScreen
+
+        await pilot.press("question_mark")
+        await pilot.pause()
+        assert isinstance(app.screen, HelpScreen)
+
+        await pilot.press("escape")
+        await pilot.pause()
+        assert not isinstance(app.screen, HelpScreen)

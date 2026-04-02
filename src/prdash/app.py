@@ -12,6 +12,7 @@ from prdash.github.client import GitHubClient
 from prdash.models import PullRequest, QueryGroupResult, deduplicate_groups, reclassify_review_groups
 
 _MAX_TOASTS_PER_REFRESH = 5
+from prdash.screens.help import HelpScreen
 from prdash.screens.settings import SettingsScreen
 from prdash.widgets import BranchSelected, DetailPaneWidget, PRListWidget, PRSelected
 from prdash.widgets.pr_list import GroupHeaderItem, NavigableListView
@@ -105,6 +106,7 @@ class ReviewDashboardApp(App):
         Binding("tab", "switch_pane", "Switch Pane"),
         Binding("r", "refresh", "Refresh"),
         Binding("S", "settings", "Settings"),
+        Binding("question_mark", "help", "Help"),
     ]
 
     def __init__(
@@ -239,6 +241,10 @@ class ReviewDashboardApp(App):
             self.notify(msg, severity=severity)  # type: ignore[arg-type]
 
         self._previous_pr_map = new_pr_map
+
+    def action_help(self) -> None:
+        """Show the keyboard shortcuts help overlay."""
+        self.push_screen(HelpScreen())
 
     def action_jump_to_group(self, group_name: str) -> None:
         """Scroll the PR list to a specific group header."""
