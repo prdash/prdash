@@ -32,6 +32,14 @@ pipx install prdash-tui
 pip install prdash-tui
 ```
 
+### Dev build (latest main branch)
+
+```bash
+brew install --head prdash
+```
+
+This builds from the latest commit on main. The version will reflect the dev state (e.g., `0.1.dev47+gc54497e`). Not recommended for general use.
+
 ### From source (development)
 
 ```bash
