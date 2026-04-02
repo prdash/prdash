@@ -40,7 +40,12 @@
     padding: 0 1 0 0;
     height: 2;
     width: 1fr;
-    overflow: hidden;
+}
+
+.pr-row-meta, .pr-row-title {
+    height: 1;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
 }
 
 .pr-row-status {

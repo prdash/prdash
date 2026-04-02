@@ -6,11 +6,10 @@ import asyncio
 import webbrowser
 
 from rich.markup import escape
-from rich.text import Text
 from textual.binding import Binding
 from textual.message import Message
 from textual.widget import Widget
-from textual.containers import Horizontal
+from textual.containers import Horizontal, Vertical
 from textual.widgets import Input, ListItem, ListView, Static
 
 from prdash.models import CandidateBranch, PullRequest, QueryGroupResult
@@ -106,18 +105,6 @@ class PRRow(ListItem):
         merge_badge = _MERGE_STATE_BADGES.get(self.pr.merge_state_status, "")
         title_markup = f"[bold]{escape(self.pr.title)}[/bold]{draft_badge}{merge_badge}"
 
-        # Use Rich Text with no_wrap to prevent line wrapping + ellipsis truncation
-        meta_text = Text.from_markup(meta_markup)
-        meta_text.no_wrap = True
-        meta_text.overflow = "ellipsis"
-        title_text = Text.from_markup(title_markup)
-        title_text.no_wrap = True
-        title_text.overflow = "ellipsis"
-        content = Text()
-        content.append_text(meta_text)
-        content.append("\n")
-        content.append_text(title_text)
-
         # Right content: age + status icons
         age = f"[dim]{self.pr.age_display}[/dim]"
         size_segment = f"[green]+{_fmt_size(self.pr.additions)}[/green][dim]/[/dim][red]-{_fmt_size(self.pr.deletions)}[/red]"
@@ -127,7 +114,9 @@ class PRRow(ListItem):
         status_col = f"{age} {size_segment}{comment_segment} {ci_icon} {review_icon}"
 
         # CSS classes
-        label_classes = "pr-row-label pr-row-new" if self.is_new else "pr-row-label"
+        label_classes = "pr-row-label"
+        if self.is_new:
+            label_classes += " pr-row-new"
         container_classes = "pr-row-container"
         if self.approved_by_me:
             container_classes += " pr-row-approved"
@@ -136,7 +125,9 @@ class PRRow(ListItem):
 
         with Horizontal(classes=container_classes):
             yield Static(marker_text, classes="pr-row-marker")
-            yield Static(content, classes=label_classes)
+            with Vertical(classes=label_classes):
+                yield Static(meta_markup, classes="pr-row-meta")
+                yield Static(title_markup, classes="pr-row-title")
             yield Static(status_col, classes="pr-row-status")
 
 
@@ -160,21 +151,12 @@ class BranchRow(ListItem):
         meta_markup = f"[dim]{repo_prefix}[/dim]"
         title_markup = f"[bold]{escape(self.branch.name)}[/bold] · [cyan]ready to PR[/cyan]"
 
-        meta_text = Text.from_markup(meta_markup)
-        meta_text.no_wrap = True
-        meta_text.overflow = "ellipsis"
-        title_text = Text.from_markup(title_markup)
-        title_text.no_wrap = True
-        title_text.overflow = "ellipsis"
-        content = Text()
-        content.append_text(meta_text)
-        content.append("\n")
-        content.append_text(title_text)
-
         age = f"[dim]{self.branch.age_display}[/dim]"
         with Horizontal(classes="pr-row-container"):
             yield Static(" ", classes="pr-row-marker")
-            yield Static(content, classes="pr-row-label")
+            with Vertical(classes="pr-row-label"):
+                yield Static(meta_markup, classes="pr-row-meta")
+                yield Static(title_markup, classes="pr-row-title")
             yield Static(age, classes="pr-row-status")
 
 

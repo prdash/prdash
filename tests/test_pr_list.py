@@ -344,11 +344,11 @@ async def test_pr_row_is_multiline(sample_pr):
 
         rows = list(widget.query(PRRow))
         from textual.widgets import Static
-        label_static = rows[0].query_one(".pr-row-label", Static)
-        content = str(label_static.render())
-        assert sample_pr.title in content
-        assert f"@{sample_pr.author}" in content
-        assert f"#{sample_pr.number}" in content
+        meta_static = rows[0].query_one(".pr-row-meta", Static)
+        title_static = rows[0].query_one(".pr-row-title", Static)
+        assert f"@{sample_pr.author}" in str(meta_static.content)
+        assert f"#{sample_pr.number}" in str(meta_static.content)
+        assert sample_pr.title in str(title_static.content)
         # age is in the status column
         status_static = rows[0].query_one(".pr-row-status", Static)
         assert sample_pr.age_display in str(status_static.content)
@@ -469,10 +469,10 @@ async def test_new_pr_row_renders_marker(sample_pr):
 
         rows = list(widget.query(PRRow))
         assert rows[0].is_new is True
-        # Check the Static has the pr-row-new class
+        # Check the Vertical container has the pr-row-new class
         from textual.widgets import Static
-        label_static = rows[0].query_one(".pr-row-label", Static)
-        assert "pr-row-new" in label_static.classes
+        label = rows[0].query_one(".pr-row-label")
+        assert "pr-row-new" in label.classes
         marker_static = rows[0].query_one(".pr-row-marker", Static)
         assert "●" in str(marker_static.content)
 
@@ -498,8 +498,8 @@ async def test_seen_pr_row_no_marker(sample_pr):
         rows = list(widget.query(PRRow))
         assert rows[0].is_new is False
         from textual.widgets import Static
-        label_static = rows[0].query_one(".pr-row-label", Static)
-        assert "pr-row-new" not in label_static.classes
+        label = rows[0].query_one(".pr-row-label")
+        assert "pr-row-new" not in label.classes
         marker_static = rows[0].query_one(".pr-row-marker", Static)
         assert "●" not in str(marker_static.content)
 
@@ -864,10 +864,9 @@ async def test_branch_row_renders_name_and_label():
         rows = list(widget.query(BranchRow))
         assert len(rows) == 1
         from textual.widgets import Static
-        label = rows[0].query_one(".pr-row-label", Static)
-        content = str(label.content)
-        assert "feat/test" in content
-        assert "ready to PR" in content
+        title = rows[0].query_one(".pr-row-title", Static)
+        assert "feat/test" in str(title.content)
+        assert "ready to PR" in str(title.content)
 
 
 @pytest.mark.asyncio
@@ -1011,8 +1010,8 @@ async def test_draft_pr_row_renders_draft_badge():
         rows = list(widget.query(PRRow))
         assert len(rows) == 1
         from textual.widgets import Static
-        label_static = rows[0].query_one(".pr-row-label", Static)
-        assert "DRAFT" in str(label_static.content)
+        title_static = rows[0].query_one(".pr-row-title", Static)
+        assert "DRAFT" in str(title_static.content)
 
 
 @pytest.mark.asyncio
@@ -1034,8 +1033,8 @@ async def test_non_draft_pr_row_no_draft_badge():
         rows = list(widget.query(PRRow))
         assert len(rows) == 1
         from textual.widgets import Static
-        label_static = rows[0].query_one(".pr-row-label", Static)
-        assert "DRAFT" not in str(label_static.content)
+        title_static = rows[0].query_one(".pr-row-title", Static)
+        assert "DRAFT" not in str(title_static.content)
 
 
 # --- Ready-to-merge highlight tests (T38) ---
