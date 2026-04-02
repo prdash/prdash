@@ -21,6 +21,8 @@ query($searchQuery: String!, $first: Int!, $after: String) {
         repository { nameWithOwner }
         createdAt
         body
+        additions
+        deletions
         author { login }
         labels(first: 20) { nodes { name } }
         reviewRequests(first: 20) {

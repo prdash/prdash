@@ -70,6 +70,8 @@ class PullRequest(BaseModel, frozen=True):
     labels: list[str] = Field(default_factory=list)
     reviewers: list[Reviewer] = Field(default_factory=list)
     checks: list[CheckRun] = Field(default_factory=list)
+    additions: int = 0
+    deletions: int = 0
     timeline_events: list[TimelineEvent] = Field(default_factory=list)
 
     @computed_field  # type: ignore[prop-decorator]
@@ -371,6 +373,8 @@ def parse_pr_node(node: dict) -> PullRequest:
         is_draft=node.get("isDraft", False),
         merge_state_status=node.get("mergeStateStatus", "UNKNOWN"),
         body=node.get("body"),
+        additions=node.get("additions", 0),
+        deletions=node.get("deletions", 0),
         labels=labels,
         reviewers=_parse_reviewers(review_requests, reviews),
         checks=_parse_checks(commit_nodes),

@@ -460,6 +460,19 @@ class TestParsePrNode:
         bob = next(r for r in pr.reviewers if r.login == "bob")
         assert bob.state == "APPROVED"
 
+    def test_additions_deletions_parsed(self) -> None:
+        pr = parse_pr_node(self._sample_node(additions=350, deletions=120))
+        assert pr.additions == 350
+        assert pr.deletions == 120
+
+    def test_additions_deletions_default_zero(self) -> None:
+        node = self._sample_node()
+        node.pop("additions", None)
+        node.pop("deletions", None)
+        pr = parse_pr_node(node)
+        assert pr.additions == 0
+        assert pr.deletions == 0
+
     def test_status_context_check(self) -> None:
         """StatusContext nodes should be parsed as CheckRuns."""
         node = self._sample_node(
