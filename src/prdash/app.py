@@ -8,7 +8,9 @@ from textual.widgets import Footer, Header
 from prdash.config import AppConfig
 from prdash.exceptions import AuthError, GitHubAPIError, NetworkError
 from prdash.github.client import GitHubClient
-from prdash.models import deduplicate_groups, reclassify_review_groups
+from prdash.models import PullRequest, QueryGroupResult, deduplicate_groups, reclassify_review_groups
+
+_MAX_TOASTS_PER_REFRESH = 5
 from prdash.screens.settings import SettingsScreen
 from prdash.widgets import BranchSelected, DetailPaneWidget, PRListWidget, PRSelected
 
@@ -33,6 +35,7 @@ class ReviewDashboardApp(App):
         self.config = config
         self.github_client = github_client
         self._seen_pr_ids: set[str] = set()
+        self._previous_pr_map: dict[str, PullRequest] = {}
         self._refresh_timer: Timer | None = None
 
     def compose(self) -> ComposeResult:
@@ -85,6 +88,7 @@ class ReviewDashboardApp(App):
             groups, errors = await self.github_client.fetch_all_groups(self.config)
             groups = reclassify_review_groups(groups, self.config.username)
             groups = deduplicate_groups(groups)
+            self._notify_changes(groups)
             pr_list.update_data(groups, seen_ids=self._seen_pr_ids, username=self.config.username)
             new_ids = {pr.id for group in groups for pr in group.pull_requests}
             self._seen_pr_ids = new_ids
@@ -98,6 +102,61 @@ class ReviewDashboardApp(App):
             self.notify(f"Unexpected error: {e}", severity="error", timeout=10)
         finally:
             pr_list.loading = False
+
+    def _notify_changes(self, groups: list[QueryGroupResult]) -> None:
+        """Detect and notify about meaningful changes since last refresh."""
+        if not self._seen_pr_ids:
+            return  # First load — skip notifications
+
+        toasts: list[tuple[str, str]] = []  # (message, severity)
+
+        # Detect new PRs per group
+        for group in groups:
+            new_in_group = [
+                pr for pr in group.pull_requests if pr.id not in self._seen_pr_ids
+            ]
+            if new_in_group:
+                count = len(new_in_group)
+                noun = "PR" if count == 1 else "PRs"
+                toasts.append(
+                    (f"{count} new {noun} in {group.group_name}", "information")
+                )
+
+        # Detect CI and review status transitions
+        new_pr_map: dict[str, PullRequest] = {}
+        for group in groups:
+            for pr in group.pull_requests:
+                new_pr_map[pr.id] = pr
+
+        for pr_id, new_pr in new_pr_map.items():
+            old_pr = self._previous_pr_map.get(pr_id)
+            if old_pr is None:
+                continue
+            # CI transitions
+            if old_pr.ci_status != new_pr.ci_status:
+                if new_pr.ci_status == "passing":
+                    toasts.append(
+                        (f"CI passed on {new_pr.repo_slug}#{new_pr.number}", "success")
+                    )
+                elif new_pr.ci_status == "failing":
+                    toasts.append(
+                        (f"CI failed on {new_pr.repo_slug}#{new_pr.number}", "warning")
+                    )
+            # Review transitions
+            if old_pr.review_status != new_pr.review_status:
+                if new_pr.review_status == "changes_requested":
+                    toasts.append(
+                        (f"Changes requested on {new_pr.repo_slug}#{new_pr.number}", "warning")
+                    )
+                elif new_pr.review_status == "approved":
+                    toasts.append(
+                        (f"Approved: {new_pr.repo_slug}#{new_pr.number}", "success")
+                    )
+
+        for msg, severity in toasts[:_MAX_TOASTS_PER_REFRESH]:
+            self.notify(msg, severity=severity)  # type: ignore[arg-type]
+
+        self._previous_pr_map = new_pr_map
 
     def action_settings(self) -> None:
         """Open the settings screen."""

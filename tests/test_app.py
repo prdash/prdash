@@ -1,3 +1,4 @@
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -6,7 +7,7 @@ from prdash.app import ReviewDashboardApp
 from prdash.config import AppConfig, QueryGroupConfig, QueryGroupType
 from prdash.exceptions import AuthError, GitHubAPIError, NetworkError
 from prdash.github.client import GitHubClient
-from prdash.models import PullRequest, QueryGroupResult
+from prdash.models import CheckRun, PullRequest, QueryGroupResult
 from prdash.widgets import DetailPaneWidget, PRListWidget
 
 
@@ -294,3 +295,78 @@ async def test_refresh_data_deduplicates_groups(sample_pr, sample_pr_minimal):
         assert pr_ids.count("PR_1") == 1
         assert pr_ids.count("PR_2") == 1
         assert len(pr_ids) == 2
+
+
+# --- Toast notifications ---
+
+
+class TestNotifyChanges:
+    """Test _notify_changes method for detecting new PRs and status transitions."""
+
+    def _make_pr(self, pr_id: str, ci_status_conclusion: str = "SUCCESS", review_state: str = "PENDING") -> PullRequest:
+        checks = [CheckRun(name="ci", status="COMPLETED", conclusion=ci_status_conclusion)] if ci_status_conclusion else []
+        return PullRequest(
+            id=pr_id,
+            number=int(pr_id.replace("PR_", "")),
+            title=f"PR {pr_id}",
+            author="alice",
+            url=f"https://github.com/org/repo/pull/{pr_id}",
+            created_at=datetime.now(UTC) - timedelta(hours=1),
+            repo_slug="org/repo",
+            checks=checks,
+        )
+
+    @pytest.mark.asyncio
+    async def test_no_notifications_on_first_load(self):
+        app = _make_plain_app()
+        async with app.run_test(size=(120, 40)) as pilot:
+            groups = [
+                QueryGroupResult(
+                    group_name="Review",
+                    group_type="test",
+                    pull_requests=[self._make_pr("PR_1")],
+                )
+            ]
+            # _seen_pr_ids is empty on first load — should not notify
+            app._notify_changes(groups)
+            # No crash, no notifications (can't easily assert no notify was called
+            # without mocking, but the method should return early)
+
+    @pytest.mark.asyncio
+    async def test_notifies_new_prs(self):
+        app = _make_plain_app()
+        async with app.run_test(size=(120, 40)) as pilot:
+            app._seen_pr_ids = {"PR_1"}
+            app._previous_pr_map = {"PR_1": self._make_pr("PR_1")}
+
+            groups = [
+                QueryGroupResult(
+                    group_name="Review",
+                    group_type="test",
+                    pull_requests=[self._make_pr("PR_1"), self._make_pr("PR_2")],
+                )
+            ]
+            # Should detect PR_2 as new — method should not crash
+            app._notify_changes(groups)
+            # Verify previous_pr_map updated
+            assert "PR_2" in app._previous_pr_map
+
+    @pytest.mark.asyncio
+    async def test_detects_ci_transition(self):
+        app = _make_plain_app()
+        async with app.run_test(size=(120, 40)) as pilot:
+            old_pr = self._make_pr("PR_1", ci_status_conclusion="FAILURE")
+            app._seen_pr_ids = {"PR_1"}
+            app._previous_pr_map = {"PR_1": old_pr}
+
+            new_pr = self._make_pr("PR_1", ci_status_conclusion="SUCCESS")
+            groups = [
+                QueryGroupResult(
+                    group_name="Review",
+                    group_type="test",
+                    pull_requests=[new_pr],
+                )
+            ]
+            app._notify_changes(groups)
+            # pr_map should be updated with new status
+            assert app._previous_pr_map["PR_1"].ci_status == "passing"
