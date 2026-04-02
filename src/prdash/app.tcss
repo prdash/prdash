@@ -36,21 +36,27 @@
     height: auto;
 }
 
-.pr-row-label {
-    padding: 0 1 0 0;
-    height: 2;
-    width: 1fr;
+.pr-row-line1 {
+    height: 1;
 }
 
-.pr-row-meta, .pr-row-title {
+.pr-row-meta {
     height: 1;
+    width: 1fr;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+}
+
+.pr-row-title {
+    height: 1;
+    padding: 0 1 0 2;
     text-wrap: nowrap;
     text-overflow: ellipsis;
 }
 
 .pr-row-status {
     width: 28;
-    height: 2;
+    height: 1;
     text-align: right;
 }
 

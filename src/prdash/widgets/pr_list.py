@@ -114,21 +114,21 @@ class PRRow(ListItem):
         status_col = f"{age} {size_segment}{comment_segment} {ci_icon} {review_icon}"
 
         # CSS classes
-        label_classes = "pr-row-label"
+        title_classes = "pr-row-title"
         if self.is_new:
-            label_classes += " pr-row-new"
+            title_classes += " pr-row-new"
         container_classes = "pr-row-container"
         if self.approved_by_me:
             container_classes += " pr-row-approved"
         if self.ready_to_merge:
             container_classes += " pr-row-ready-to-merge"
 
-        with Horizontal(classes=container_classes):
-            yield Static(marker_text, classes="pr-row-marker")
-            with Vertical(classes=label_classes):
+        with Vertical(classes=container_classes):
+            with Horizontal(classes="pr-row-line1"):
+                yield Static(marker_text, classes="pr-row-marker")
                 yield Static(meta_markup, classes="pr-row-meta")
-                yield Static(title_markup, classes="pr-row-title")
-            yield Static(status_col, classes="pr-row-status")
+                yield Static(status_col, classes="pr-row-status")
+            yield Static(title_markup, classes=title_classes)
 
 
 class BranchSelected(Message):
@@ -152,12 +152,12 @@ class BranchRow(ListItem):
         title_markup = f"[bold]{escape(self.branch.name)}[/bold] · [cyan]ready to PR[/cyan]"
 
         age = f"[dim]{self.branch.age_display}[/dim]"
-        with Horizontal(classes="pr-row-container"):
-            yield Static(" ", classes="pr-row-marker")
-            with Vertical(classes="pr-row-label"):
+        with Vertical(classes="pr-row-container"):
+            with Horizontal(classes="pr-row-line1"):
+                yield Static(" ", classes="pr-row-marker")
                 yield Static(meta_markup, classes="pr-row-meta")
-                yield Static(title_markup, classes="pr-row-title")
-            yield Static(age, classes="pr-row-status")
+                yield Static(age, classes="pr-row-status")
+            yield Static(title_markup, classes="pr-row-title")
 
 
 class NavigableListView(ListView):

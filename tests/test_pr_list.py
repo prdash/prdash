@@ -469,10 +469,9 @@ async def test_new_pr_row_renders_marker(sample_pr):
 
         rows = list(widget.query(PRRow))
         assert rows[0].is_new is True
-        # Check the Vertical container has the pr-row-new class
         from textual.widgets import Static
-        label = rows[0].query_one(".pr-row-label")
-        assert "pr-row-new" in label.classes
+        title = rows[0].query_one(".pr-row-title", Static)
+        assert "pr-row-new" in title.classes
         marker_static = rows[0].query_one(".pr-row-marker", Static)
         assert "●" in str(marker_static.content)
 
@@ -498,8 +497,8 @@ async def test_seen_pr_row_no_marker(sample_pr):
         rows = list(widget.query(PRRow))
         assert rows[0].is_new is False
         from textual.widgets import Static
-        label = rows[0].query_one(".pr-row-label")
-        assert "pr-row-new" not in label.classes
+        title = rows[0].query_one(".pr-row-title", Static)
+        assert "pr-row-new" not in title.classes
         marker_static = rows[0].query_one(".pr-row-marker", Static)
         assert "●" not in str(marker_static.content)
 
