@@ -193,6 +193,7 @@ class PRListWidget(Widget):
         self._seen_ids: set[str] | None = None
         self._username: str | None = None
         self._filter_query: str = ""
+        self._sort_mode: str = "age_newest"
 
     def compose(self):
         yield Input(placeholder="Filter PRs...", id="pr-filter-input", classes="hidden")
@@ -246,6 +247,29 @@ class PRListWidget(Widget):
             or q in pr.repo_slug.lower()
             or q in str(pr.number)
         )
+
+    def _sort_prs(self, prs: list[PullRequest]) -> list[PullRequest]:
+        """Sort PRs according to the current sort mode.
+
+        Default (age_newest) preserves API order since GitHub already returns
+        newest first. Other modes use stable sort to preserve original ordering
+        for items with equal keys.
+        """
+        match self._sort_mode:
+            case "age_newest":
+                return prs  # GitHub API already returns newest first
+            case "age_oldest":
+                return sorted(prs, key=lambda pr: pr.created_at)
+            case "ci_failing":
+                order = {"failing": 0, "pending": 1, "passing": 2, "none": 3}
+                return sorted(prs, key=lambda pr: order.get(pr.ci_status, 3))
+            case "review_changes":
+                order = {"changes_requested": 0, "pending": 1, "approved": 2, "none": 3}
+                return sorted(prs, key=lambda pr: order.get(pr.review_status, 3))
+            case "size_smallest":
+                return sorted(prs, key=lambda pr: pr.additions + pr.deletions)
+            case _:
+                return prs
 
     def _matches_filter_branch(self, branch: CandidateBranch) -> bool:
         """Check if a branch matches the current filter query."""
@@ -316,8 +340,8 @@ class PRListWidget(Widget):
                     items.append(EmptyGroupItem())
                     item_ids.append(f"empty:{group.group_name}")
                 else:
-                    prs = filtered_prs
-                    # Sort approved-by-me PRs to bottom in non-authored groups
+                    prs = self._sort_prs(filtered_prs)
+                    # Sort approved-by-me PRs to bottom in non-authored groups (after primary sort)
                     should_mark_approved = bool(self._username) and group.group_type != "authored"
                     if should_mark_approved:
                         prs = sorted(prs, key=lambda pr: pr.is_approved_by(self._username))  # type: ignore[arg-type]

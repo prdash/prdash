@@ -42,6 +42,21 @@ class PRDashCommandProvider(Provider):
             help="Configure query groups",
         )
 
+        # Sort commands
+        sort_modes = [
+            ("Sort: Newest first", "age_newest", "Sort PRs by newest first (default)"),
+            ("Sort: Oldest first", "age_oldest", "Sort PRs by oldest first"),
+            ("Sort: CI failing first", "ci_failing", "Sort PRs with failing CI to top"),
+            ("Sort: Changes requested first", "review_changes", "Sort PRs needing changes to top"),
+            ("Sort: Smallest first", "size_smallest", "Sort PRs by smallest diff size"),
+        ]
+        for display, mode, help_text in sort_modes:
+            def make_sort(m: str):
+                def sort_action() -> None:
+                    app.action_set_sort(m)
+                return sort_action
+            yield DiscoveryHit(display=display, command=make_sort(mode), help=help_text)
+
         # Jump to group commands
         pr_list = app.query_one(PRListWidget)
         for group in pr_list._groups:
@@ -69,6 +84,21 @@ class PRDashCommandProvider(Provider):
             ("Open Settings", app.action_settings, "Open the settings screen"),
             ("Open Query Groups", app.action_query_groups, "Configure query groups"),
         ]
+
+        # Sort commands
+        sort_modes = [
+            ("Sort: Newest first", "age_newest", "Sort PRs by newest first (default)"),
+            ("Sort: Oldest first", "age_oldest", "Sort PRs by oldest first"),
+            ("Sort: CI failing first", "ci_failing", "Sort PRs with failing CI to top"),
+            ("Sort: Changes requested first", "review_changes", "Sort PRs needing changes to top"),
+            ("Sort: Smallest first", "size_smallest", "Sort PRs by smallest diff size"),
+        ]
+        for display, mode, help_text in sort_modes:
+            def make_sort(m: str):
+                def sort_action() -> None:
+                    app.action_set_sort(m)
+                return sort_action
+            commands.append((display, make_sort(mode), help_text))
 
         # Jump to group commands
         pr_list = app.query_one(PRListWidget)
@@ -241,6 +271,20 @@ class ReviewDashboardApp(App):
             self.notify(msg, severity=severity)  # type: ignore[arg-type]
 
         self._previous_pr_map = new_pr_map
+
+    def action_set_sort(self, mode: str) -> None:
+        """Set the PR sort mode and rebuild the list."""
+        pr_list = self.query_one(PRListWidget)
+        pr_list._sort_mode = mode
+        pr_list._rebuild_list()
+        labels = {
+            "age_newest": "Newest first",
+            "age_oldest": "Oldest first",
+            "ci_failing": "CI failing first",
+            "review_changes": "Changes requested first",
+            "size_smallest": "Smallest first",
+        }
+        self.notify(f"Sort: {labels.get(mode, mode)}", severity="information")
 
     def action_help(self) -> None:
         """Show the keyboard shortcuts help overlay."""

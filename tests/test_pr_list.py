@@ -1194,6 +1194,43 @@ async def test_clearing_filter_restores_all(sample_pr, sample_pr_minimal):
         assert len(list(widget.query(PRRow))) == 2
 
 
+# --- Sort tests (T43) ---
+
+
+@pytest.mark.asyncio
+async def test_sort_oldest_first():
+    """Sorting by oldest first should reverse the default order."""
+    from datetime import UTC, datetime, timedelta
+    old_pr = PullRequest(
+        id="PR_OLD", number=1, title="Old", author="a",
+        url="http://x/1", created_at=datetime.now(UTC) - timedelta(days=5),
+    )
+    new_pr = PullRequest(
+        id="PR_NEW", number=2, title="New", author="b",
+        url="http://x/2", created_at=datetime.now(UTC) - timedelta(hours=1),
+    )
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(group_name="Test", group_type="test", pull_requests=[new_pr, old_pr]),
+        ])
+        await pilot.pause()
+
+        # Default order preserves API order (new first)
+        rows = list(widget.query(PRRow))
+        assert rows[0].pr.id == "PR_NEW"
+
+        # Sort oldest first
+        widget._sort_mode = "age_oldest"
+        widget._rebuild_list()
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert rows[0].pr.id == "PR_OLD"
+        assert rows[1].pr.id == "PR_NEW"
+
+
 # --- Checkout tests (T48) ---
 
 
