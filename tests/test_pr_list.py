@@ -1,6 +1,6 @@
 """Tests for the PR list widget."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -1106,5 +1106,52 @@ async def test_group_with_only_branches_not_auto_collapsed():
         assert headers[0].collapsed is False
         rows = list(widget.query(BranchRow))
         assert len(rows) == 1
+
+
+# --- Checkout tests (T48) ---
+
+
+@pytest.mark.asyncio
+async def test_c_key_binding_exists():
+    """NavigableListView should have a 'c' binding."""
+    keys = [b.key for b in NavigableListView.BINDINGS]
+    assert "c" in keys
+
+
+@pytest.mark.asyncio
+async def test_checkout_pr_calls_gh(sample_pr):
+    """Pressing c on a PR row should invoke gh pr checkout."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test",
+                group_type="test",
+                pull_requests=[sample_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        # Move to PR row
+        await pilot.press("j")
+        await pilot.pause()
+
+        mock_proc = AsyncMock()
+        mock_proc.returncode = 0
+        mock_proc.communicate = AsyncMock(return_value=(b"", b""))
+
+        with patch("prdash.widgets.pr_list.asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec:
+            await pilot.press("c")
+            await pilot.pause()
+            await pilot.pause()
+            mock_exec.assert_called_once()
+            args = mock_exec.call_args[0]
+            assert args[0] == "gh"
+            assert str(sample_pr.number) in args
 
 

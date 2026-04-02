@@ -150,7 +150,7 @@ Depends on Phase 3 (T06).
 
 | ID | Task | Dependencies | Status |
 |---|---|---|---|
-| T48 | One-Key PR Checkout (`c` to checkout PR branch via gh CLI) | T06 | not started |
+| T48 | One-Key PR Checkout (`c` to checkout PR branch via gh CLI) | T06 | completed |
 
 ## Phase 15: Data Enrichment
 

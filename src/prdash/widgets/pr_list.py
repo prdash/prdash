@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import webbrowser
 
 from rich.markup import escape
@@ -129,12 +130,52 @@ class BranchRow(ListItem):
 
 
 class NavigableListView(ListView):
-    """ListView with j/k vim-style navigation."""
+    """ListView with j/k vim-style navigation and checkout action."""
 
     BINDINGS = [
         Binding("j", "cursor_down", "Down", show=False),
         Binding("k", "cursor_up", "Up", show=False),
+        Binding("c", "checkout", "Checkout", show=False),
     ]
+
+    async def action_checkout(self) -> None:
+        """Checkout the selected PR branch or candidate branch."""
+        item = self.highlighted_child
+        if isinstance(item, PRRow):
+            pr = item.pr
+            cmd = ["gh", "pr", "checkout", str(pr.number)]
+            if pr.repo_slug:
+                cmd.extend(["--repo", pr.repo_slug])
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                _, stderr = await proc.communicate()
+                if proc.returncode == 0:
+                    self.app.notify(f"Checked out #{pr.number}", severity="information")
+                else:
+                    err = stderr.decode().strip() if stderr else "unknown error"
+                    self.app.notify(f"Checkout failed: {err}", severity="error")
+            except FileNotFoundError:
+                self.app.notify("gh CLI not found — install it to use checkout", severity="error")
+        elif isinstance(item, BranchRow):
+            branch = item.branch
+            try:
+                proc = await asyncio.create_subprocess_exec(
+                    "git", "checkout", branch.name,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                _, stderr = await proc.communicate()
+                if proc.returncode == 0:
+                    self.app.notify(f"Checked out {branch.name}", severity="information")
+                else:
+                    err = stderr.decode().strip() if stderr else "unknown error"
+                    self.app.notify(f"Checkout failed: {err}", severity="error")
+            except FileNotFoundError:
+                self.app.notify("git not found", severity="error")
 
 
 class PRListWidget(Widget):
