@@ -473,6 +473,20 @@ class TestParsePrNode:
         assert pr.additions == 0
         assert pr.deletions == 0
 
+    def test_comment_count_parsed(self) -> None:
+        pr = parse_pr_node(self._sample_node(comments={"totalCount": 7}))
+        assert pr.comment_count == 7
+
+    def test_comment_count_default_zero(self) -> None:
+        node = self._sample_node()
+        node.pop("comments", None)
+        pr = parse_pr_node(node)
+        assert pr.comment_count == 0
+
+    def test_comment_count_null(self) -> None:
+        pr = parse_pr_node(self._sample_node(comments=None))
+        assert pr.comment_count == 0
+
     def test_status_context_check(self) -> None:
         """StatusContext nodes should be parsed as CheckRuns."""
         node = self._sample_node(

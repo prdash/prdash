@@ -72,6 +72,7 @@ class PullRequest(BaseModel, frozen=True):
     checks: list[CheckRun] = Field(default_factory=list)
     additions: int = 0
     deletions: int = 0
+    comment_count: int = 0
     timeline_events: list[TimelineEvent] = Field(default_factory=list)
 
     @computed_field  # type: ignore[prop-decorator]
@@ -375,6 +376,7 @@ def parse_pr_node(node: dict) -> PullRequest:
         body=node.get("body"),
         additions=node.get("additions", 0),
         deletions=node.get("deletions", 0),
+        comment_count=(node.get("comments") or {}).get("totalCount", 0),
         labels=labels,
         reviewers=_parse_reviewers(review_requests, reviews),
         checks=_parse_checks(commit_nodes),

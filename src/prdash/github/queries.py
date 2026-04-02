@@ -24,6 +24,7 @@ query($searchQuery: String!, $first: Int!, $after: String) {
         additions
         deletions
         author { login }
+        comments { totalCount }
         labels(first: 20) { nodes { name } }
         reviewRequests(first: 20) {
           nodes {

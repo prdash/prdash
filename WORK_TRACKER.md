@@ -160,7 +160,7 @@ Depends on Phase 2 (T04), Phase 3 (T06, T07), Phase 10 (T38).
 |---|---|---|---|
 | T49 | PR Size Indicators (additions/deletions on PR rows) | T04, T06 | completed |
 | T50 | Merge Conflict Badges (surface DIRTY/BLOCKED/BEHIND states) | T06, T38 | not started |
-| T51 | Comment Count (total comments on PR rows and detail pane) | T04, T06, T07 | not started |
+| T51 | Comment Count (total comments on PR rows and detail pane) | T04, T06, T07 | completed |
 
 ## Phase 16: Future — Workflow Actions
 

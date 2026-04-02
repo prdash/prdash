@@ -85,7 +85,8 @@ class PRRow(ListItem):
         title_line = f"{repo_prefix}{escape(self.pr.title)}"
         draft_segment = " · [cyan]DRAFT[/cyan]" if self.pr.is_draft else ""
         size_segment = f" · [green]+{self.pr.additions}[/green][dim]/[/dim][red]-{self.pr.deletions}[/red]"
-        meta_line = f"[dim]@{escape(self.pr.author)} · {self.pr.age_display}[/dim]{draft_segment} · {ci_label} · {review_label}{size_segment}"
+        comment_segment = f" · [dim]{self.pr.comment_count}💬[/dim]" if self.pr.comment_count else ""
+        meta_line = f"[dim]@{escape(self.pr.author)} · {self.pr.age_display}[/dim]{draft_segment} · {ci_label} · {review_label}{size_segment}{comment_segment}"
         classes = "pr-row-label pr-row-new" if self.is_new else "pr-row-label"
         if self.approved_by_me:
             classes += " pr-row-approved"
