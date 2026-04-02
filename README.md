@@ -127,6 +127,7 @@ enabled = false
 | `team_slugs` | list[str] | `[]` | Team slugs for team review queries |
 | `poll_interval` | int | `300` | Auto-refresh interval in seconds (min 30) |
 | `timeout` | float | `30.0` | HTTP request timeout in seconds (min 1.0) |
+| `theme` | string | `"textual-dark"` | Color theme (20 built-in options) |
 | `query_groups` | list | 5 defaults | PR query groups (see below) |
 
 #### Query group fields
@@ -163,10 +164,15 @@ The dashboard has a split-pane layout:
 | `j` / `Down` | Move cursor down in PR list |
 | `k` / `Up` | Move cursor up in PR list |
 | `Enter` | Toggle group collapse/expand, or open PR in browser |
+| `Left` / `Right` | Collapse / expand group header |
 | `Tab` | Switch focus between left and right panes |
 | `r` | Refresh PR data |
+| `c` | Checkout selected PR branch (via `gh pr checkout`) |
+| `/` | Search / filter PRs by title, author, repo, or number |
+| `Ctrl+P` | Open command palette |
+| `?` | Show keyboard shortcuts help |
 | `S` | Open settings screen |
-| `Escape` | Close settings / query groups screen |
+| `Escape` | Close overlay / clear filter |
 | `q` | Quit |
 
 ## Query Groups
@@ -179,7 +185,10 @@ Query groups define which PRs appear in the dashboard. There are 5 types:
 | `team_reviewer` | PRs where one of your teams is requested for review |
 | `mentioned` | PRs where you are mentioned or involved |
 | `authored` | PRs you authored |
+| `reviewed_by` | PRs you have already reviewed |
+| `assigned` | PRs assigned to you |
 | `label` | PRs matching specific labels (set via `labels` field) |
+| `ready_to_pr` | Local branches without open PRs (ready to create a PR) |
 
 PRs are deduplicated across groups — each PR appears only in its highest-priority group (priority follows the order listed above).
 
@@ -200,3 +209,24 @@ Press `S` to open the settings screen where you can edit:
 - Poll interval
 
 From settings, you can also open the **Query Groups** screen to add, remove, reorder, and toggle query groups. Changes are saved immediately and trigger a data refresh.
+
+## Command Palette
+
+Press `Ctrl+P` to open the command palette with fuzzy search across all actions:
+
+- **Jump to group** — scroll to any query group by name
+- **Sort PRs** — sort by newest/oldest, CI status, review status, or diff size
+- **Change theme** — switch between 20 built-in themes (dracula, monokai, nord, solarized, catppuccin, etc.)
+- **Refresh**, **Settings**, **Query Groups**
+
+## PR List Indicators
+
+Each PR row shows:
+
+- **CI status** — `CI:pass` (green), `CI:fail` (red), `CI:pend` (yellow)
+- **Review status** — `Rev:ok` (green), `Rev:chg` (red), `Rev:pend` (yellow)
+- **Merge state** — `CONFLICT` (red), `BLOCKED` (yellow), `BEHIND` (yellow)
+- **Diff size** — `+350/-120` (additions in green, deletions in red)
+- **Comments** — `5💬` when comments exist
+- **Draft badge** — cyan `DRAFT` indicator for draft PRs
+- **New PR marker** — bold dot for PRs appearing since last refresh
