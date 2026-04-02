@@ -10,7 +10,7 @@ from textual.binding import Binding
 from textual.message import Message
 from textual.widget import Widget
 from textual.containers import Horizontal
-from textual.widgets import ListItem, ListView, Static
+from textual.widgets import Input, ListItem, ListView, Static
 
 from prdash.models import CandidateBranch, PullRequest, QueryGroupResult
 from prdash.state import get_collapsed_groups, set_collapsed_groups
@@ -181,6 +181,10 @@ class NavigableListView(ListView):
 class PRListWidget(Widget):
     """Left-pane widget displaying PRs in a single flat ListView."""
 
+    BINDINGS = [
+        Binding("slash", "toggle_filter", "Search", show=False),
+    ]
+
     def __init__(self, **kwargs: object) -> None:
         super().__init__(**kwargs)
         self._groups: list[QueryGroupResult] = []
@@ -188,9 +192,67 @@ class PRListWidget(Widget):
         self._persisted_collapsed: set[str] = get_collapsed_groups()
         self._seen_ids: set[str] | None = None
         self._username: str | None = None
+        self._filter_query: str = ""
 
     def compose(self):
+        yield Input(placeholder="Filter PRs...", id="pr-filter-input", classes="hidden")
         yield NavigableListView(id="pr-list-view")
+
+    def action_toggle_filter(self) -> None:
+        """Show/hide the filter input."""
+        filter_input = self.query_one("#pr-filter-input", Input)
+        if "hidden" in filter_input.classes:
+            filter_input.remove_class("hidden")
+            filter_input.value = self._filter_query
+            filter_input.focus()
+        else:
+            filter_input.add_class("hidden")
+            self.query_one(NavigableListView).focus()
+
+    def on_input_changed(self, event: Input.Changed) -> None:
+        """Filter the PR list as user types."""
+        if event.input.id == "pr-filter-input":
+            self._filter_query = event.value
+            self._rebuild_list()
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Hide input on Enter but keep filter active."""
+        if event.input.id == "pr-filter-input":
+            event.input.add_class("hidden")
+            self.query_one(NavigableListView).focus()
+
+    def _on_key_filter_escape(self, event) -> None:
+        """Clear filter and hide input on Escape."""
+        filter_input = self.query_one("#pr-filter-input", Input)
+        if "hidden" not in filter_input.classes:
+            self._filter_query = ""
+            filter_input.value = ""
+            filter_input.add_class("hidden")
+            self._rebuild_list()
+            self.query_one(NavigableListView).focus()
+            event.prevent_default()
+            event.stop()
+            return True
+        return False
+
+    def _matches_filter(self, pr: PullRequest) -> bool:
+        """Check if a PR matches the current filter query."""
+        if not self._filter_query:
+            return True
+        q = self._filter_query.lower()
+        return (
+            q in pr.title.lower()
+            or q in pr.author.lower()
+            or q in pr.repo_slug.lower()
+            or q in str(pr.number)
+        )
+
+    def _matches_filter_branch(self, branch: CandidateBranch) -> bool:
+        """Check if a branch matches the current filter query."""
+        if not self._filter_query:
+            return True
+        q = self._filter_query.lower()
+        return q in branch.name.lower() or q in branch.repo_slug.lower()
 
     def update_data(self, groups: list[QueryGroupResult], seen_ids: set[str] | None = None, username: str | None = None) -> None:
         """Rebuild the widget tree with new PR data."""
@@ -230,21 +292,31 @@ class PRListWidget(Widget):
 
         for i, group in enumerate(self._groups):
             collapsed = self._header_states.get(group.group_name, False)
-            total_count = len(group.pull_requests) + len(group.branches)
+            # Count will be updated after filtering below
             header = GroupHeaderItem(
-                group.group_name, total_count, collapsed=collapsed,
+                group.group_name, len(group.pull_requests) + len(group.branches), collapsed=collapsed,
             )
             if i == 0:
                 header.add_class("first-group")
             items.append(header)
             item_ids.append(f"header:{group.group_name}")
 
+            # Apply filter
+            filtered_prs = [pr for pr in group.pull_requests if self._matches_filter(pr)]
+            filtered_branches = [b for b in group.branches if self._matches_filter_branch(b)]
+
+            # Skip entire group if filter is active and nothing matches
+            if self._filter_query and not filtered_prs and not filtered_branches:
+                items.pop()  # Remove the header we just added
+                item_ids.pop()
+                continue
+
             if not collapsed:
-                if not group.pull_requests and not group.branches:
+                if not filtered_prs and not filtered_branches:
                     items.append(EmptyGroupItem())
                     item_ids.append(f"empty:{group.group_name}")
                 else:
-                    prs = group.pull_requests
+                    prs = filtered_prs
                     # Sort approved-by-me PRs to bottom in non-authored groups
                     should_mark_approved = bool(self._username) and group.group_type != "authored"
                     if should_mark_approved:
@@ -255,7 +327,7 @@ class PRListWidget(Widget):
                         ready_to_merge = group.group_type == "authored" and pr.ready_to_merge
                         items.append(PRRow(pr, is_new=is_new, approved_by_me=approved_by_me, ready_to_merge=ready_to_merge))
                         item_ids.append(f"pr:{pr.id}")
-                    for branch in group.branches:
+                    for branch in filtered_branches:
                         items.append(BranchRow(branch))
                         item_ids.append(f"branch:{branch.name}")
 
@@ -302,7 +374,11 @@ class PRListWidget(Widget):
             webbrowser.open(event.item.branch.compare_url)
 
     def on_key(self, event) -> None:
-        """Handle left/right arrow keys for group header collapse/expand."""
+        """Handle special keys: Escape (clear filter), left/right (collapse/expand)."""
+        if event.key == "escape":
+            if self._on_key_filter_escape(event):
+                return
+            return
         if event.key not in ("left", "right"):
             return
         list_view = self.query_one("#pr-list-view", NavigableListView)

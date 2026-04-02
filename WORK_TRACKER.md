@@ -130,7 +130,7 @@ Depends on Phase 3 (T05, T06), Phase 4 (T08).
 |---|---|---|---|
 | T40 | Command Palette (Ctrl+P fuzzy command search) | T05 | completed |
 | T41 | Help Overlay (`?` keybinding shows all shortcuts) | T05, T08 | completed |
-| T42 | Fuzzy Search/Filter Bar (`/` to filter PRs by title/author/repo) | T06 | not started |
+| T42 | Fuzzy Search/Filter Bar (`/` to filter PRs by title/author/repo) | T06 | completed |
 | T43 | PR Sort Options (sort within groups by age, CI, review, size) | T06, T40, T49 | not started |
 
 ## Phase 13: Polish & Feel

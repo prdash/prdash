@@ -73,3 +73,8 @@ GroupHeaderItem.-highlight .group-header-label {
 .pr-row-ready-to-merge {
     background: $success 15%;
 }
+
+#pr-filter-input {
+    dock: top;
+    margin: 0 1;
+}

@@ -1108,6 +1108,92 @@ async def test_group_with_only_branches_not_auto_collapsed():
         assert len(rows) == 1
 
 
+# --- Filter tests (T42) ---
+
+
+def test_filter_binding_exists():
+    """PRListWidget should have a slash binding for filter."""
+    keys = [b.key for b in PRListWidget.BINDINGS]
+    assert "slash" in keys
+
+
+@pytest.mark.asyncio
+async def test_filter_hides_non_matching_prs(sample_pr, sample_pr_minimal):
+    """Filtering should hide PRs that don't match."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test",
+                group_type="test",
+                pull_requests=[sample_pr, sample_pr_minimal],
+            ),
+        ])
+        await pilot.pause()
+
+        # Both PRs visible
+        assert len(list(widget.query(PRRow))) == 2
+
+        # Apply filter matching only sample_pr (title: "Fix auth token refresh")
+        widget._filter_query = "auth"
+        widget._rebuild_list()
+        await pilot.pause()
+
+        rows = list(widget.query(PRRow))
+        assert len(rows) == 1
+        assert rows[0].pr.id == sample_pr.id
+
+
+@pytest.mark.asyncio
+async def test_filter_hides_empty_groups(sample_pr):
+    """Groups with no matching PRs should be hidden when filter is active."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(group_name="Group A", group_type="test", pull_requests=[sample_pr]),
+            QueryGroupResult(group_name="Group B", group_type="test", pull_requests=[]),
+        ])
+        await pilot.pause()
+
+        # Filter to something only in group A
+        widget._filter_query = "auth"
+        widget._rebuild_list()
+        await pilot.pause()
+
+        headers = list(widget.query(GroupHeaderItem))
+        assert len(headers) == 1
+        assert headers[0].group_name == "Group A"
+
+
+@pytest.mark.asyncio
+async def test_clearing_filter_restores_all(sample_pr, sample_pr_minimal):
+    """Clearing filter should show all PRs again."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Test",
+                group_type="test",
+                pull_requests=[sample_pr, sample_pr_minimal],
+            ),
+        ])
+        await pilot.pause()
+
+        # Filter then clear
+        widget._filter_query = "auth"
+        widget._rebuild_list()
+        await pilot.pause()
+        assert len(list(widget.query(PRRow))) == 1
+
+        widget._filter_query = ""
+        widget._rebuild_list()
+        await pilot.pause()
+        assert len(list(widget.query(PRRow))) == 2
+
+
 # --- Checkout tests (T48) ---
 
 
