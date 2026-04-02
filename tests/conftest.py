@@ -19,6 +19,14 @@ def _clean_sys_argv(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("sys.argv", ["prdash"])
 
 
+@pytest.fixture(autouse=True)
+def _isolate_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prevent tests from reading/writing the real state file."""
+    monkeypatch.setattr("prdash.state.STATE_FILE", None)
+    monkeypatch.setattr("prdash.widgets.pr_list.get_collapsed_groups", lambda path=None: set())
+    monkeypatch.setattr("prdash.widgets.pr_list.set_collapsed_groups", lambda groups, path=None: None)
+
+
 @pytest.fixture
 def sample_pr() -> PullRequest:
     return PullRequest(

@@ -12,6 +12,7 @@ from textual.containers import Horizontal
 from textual.widgets import ListItem, ListView, Static
 
 from prdash.models import CandidateBranch, PullRequest, QueryGroupResult
+from prdash.state import get_collapsed_groups, set_collapsed_groups
 
 _CI_LABELS = {
     "passing": "[green]CI:pass[/green]",
@@ -143,6 +144,7 @@ class PRListWidget(Widget):
         super().__init__(**kwargs)
         self._groups: list[QueryGroupResult] = []
         self._header_states: dict[str, bool] = {}
+        self._persisted_collapsed: set[str] = get_collapsed_groups()
         self._seen_ids: set[str] | None = None
         self._username: str | None = None
 
@@ -157,9 +159,12 @@ class PRListWidget(Widget):
         # Initialize header states for new groups; preserve existing collapse state
         for group in groups:
             if group.group_name not in self._header_states:
-                self._header_states[group.group_name] = (
-                    len(group.pull_requests) == 0 and len(group.branches) == 0
-                )
+                if group.group_name in self._persisted_collapsed:
+                    self._header_states[group.group_name] = True
+                else:
+                    self._header_states[group.group_name] = (
+                        len(group.pull_requests) == 0 and len(group.branches) == 0
+                    )
         self._rebuild_list()
 
     def _rebuild_list(self) -> None:
@@ -234,12 +239,19 @@ class PRListWidget(Widget):
                                 list_view.index = item_ids.index(header_id)
                             break
 
+    def _persist_collapse_state(self) -> None:
+        """Save current collapsed groups to disk."""
+        collapsed = {name for name, is_collapsed in self._header_states.items() if is_collapsed}
+        self._persisted_collapsed = collapsed
+        set_collapsed_groups(collapsed)
+
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         """Toggle collapse on group headers when selected (Enter pressed)."""
         if isinstance(event.item, GroupHeaderItem):
             header = event.item
             header.collapsed = not header.collapsed
             self._header_states[header.group_name] = header.collapsed
+            self._persist_collapse_state()
             self._rebuild_list()
         elif isinstance(event.item, EmptyGroupItem):
             pass  # No-op for empty placeholder
@@ -259,12 +271,14 @@ class PRListWidget(Widget):
         if event.key == "left" and not item.collapsed:
             item.collapsed = True
             self._header_states[item.group_name] = True
+            self._persist_collapse_state()
             self._rebuild_list()
             event.prevent_default()
             event.stop()
         elif event.key == "right" and item.collapsed:
             item.collapsed = False
             self._header_states[item.group_name] = False
+            self._persist_collapse_state()
             self._rebuild_list()
             event.prevent_default()
             event.stop()

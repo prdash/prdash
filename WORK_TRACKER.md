@@ -142,7 +142,7 @@ Depends on Phase 3 (T06), Phase 4 (T10), Phase 12 (T40).
 | T44 | Toast Notifications (detect new PRs, CI/review changes on refresh) | T10 | completed |
 | T45 | Loading States (loading indicator during refresh) | T06, T10 | completed |
 | T46 | Theme Support (Textual built-in themes, persist in config) | T40 | not started |
-| T47 | Persistent Group Collapse State (save/restore across sessions) | T06 | not started |
+| T47 | Persistent Group Collapse State (save/restore across sessions) | T06 | completed |
 
 ## Phase 14: Workflow Actions
 
