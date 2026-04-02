@@ -424,3 +424,26 @@ async def test_help_screen_opens_and_closes():
         await pilot.press("escape")
         await pilot.pause()
         assert not isinstance(app.screen, HelpScreen)
+
+
+# --- Theme support ---
+
+
+@pytest.mark.asyncio
+async def test_theme_applied_from_config():
+    """App should apply theme from config on init."""
+    config = _make_config()
+    config = config.model_copy(update={"theme": "dracula"})
+    app = ReviewDashboardApp(config=config)
+    assert app.theme == "dracula"
+
+
+@pytest.mark.asyncio
+async def test_set_theme_changes_theme():
+    """action_set_theme should change the app theme."""
+    app, _ = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        with patch("prdash.app.save_config"):
+            app.action_set_theme("monokai")
+            assert app.theme == "monokai"
+            assert app.config.theme == "monokai"

@@ -6,7 +6,7 @@ from textual.timer import Timer
 from textual import on, work
 from textual.widgets import Footer, Header
 
-from prdash.config import AppConfig
+from prdash.config import AppConfig, save_config
 from prdash.exceptions import AuthError, GitHubAPIError, NetworkError
 from prdash.github.client import GitHubClient
 from prdash.models import PullRequest, QueryGroupResult, deduplicate_groups, reclassify_review_groups
@@ -57,6 +57,18 @@ class PRDashCommandProvider(Provider):
                 return sort_action
             yield DiscoveryHit(display=display, command=make_sort(mode), help=help_text)
 
+        # Theme commands
+        for theme_name in sorted(app.available_themes):
+            def make_theme(t: str):
+                def set_theme() -> None:
+                    app.action_set_theme(t)
+                return set_theme
+            yield DiscoveryHit(
+                display=f"Theme: {theme_name}",
+                command=make_theme(theme_name),
+                help=f"Switch to {theme_name} theme",
+            )
+
         # Jump to group commands
         pr_list = app.query_one(PRListWidget)
         for group in pr_list._groups:
@@ -99,6 +111,14 @@ class PRDashCommandProvider(Provider):
                     app.action_set_sort(m)
                 return sort_action
             commands.append((display, make_sort(mode), help_text))
+
+        # Theme commands
+        for theme_name in sorted(app.available_themes):
+            def make_theme(t: str):
+                def set_theme() -> None:
+                    app.action_set_theme(t)
+                return set_theme
+            commands.append((f"Theme: {theme_name}", make_theme(theme_name), f"Switch to {theme_name} theme"))
 
         # Jump to group commands
         pr_list = app.query_one(PRListWidget)
@@ -151,6 +171,8 @@ class ReviewDashboardApp(App):
         self._seen_pr_ids: set[str] = set()
         self._previous_pr_map: dict[str, PullRequest] = {}
         self._refresh_timer: Timer | None = None
+        if config and config.theme:
+            self.theme = config.theme
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -271,6 +293,14 @@ class ReviewDashboardApp(App):
             self.notify(msg, severity=severity)  # type: ignore[arg-type]
 
         self._previous_pr_map = new_pr_map
+
+    def action_set_theme(self, theme_name: str) -> None:
+        """Switch theme and persist to config."""
+        self.theme = theme_name
+        if self.config is not None:
+            self.config = self.config.model_copy(update={"theme": theme_name})
+            save_config(self.config)
+        self.notify(f"Theme: {theme_name}", severity="information")
 
     def action_set_sort(self, mode: str) -> None:
         """Set the PR sort mode and rebuild the list."""
