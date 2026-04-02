@@ -219,7 +219,11 @@ class ReviewDashboardApp(App):
         if self.github_client is None or self.config is None:
             return
         pr_list = self.query_one(PRListWidget)
-        pr_list.loading = True
+        has_data = bool(pr_list._groups)
+        if not has_data:
+            pr_list.loading = True
+        else:
+            self.sub_title = (self.sub_title or "") + " (refreshing...)"
         try:
             groups, errors = await self.github_client.fetch_all_groups(self.config)
             groups = reclassify_review_groups(groups, self.config.username)
@@ -237,7 +241,10 @@ class ReviewDashboardApp(App):
         except Exception as e:
             self.notify(f"Unexpected error: {e}", severity="error", timeout=10)
         finally:
-            pr_list.loading = False
+            if not has_data:
+                pr_list.loading = False
+            else:
+                self._update_subtitle()
 
     def _notify_changes(self, groups: list[QueryGroupResult]) -> None:
         """Detect and notify about meaningful changes since last refresh."""
