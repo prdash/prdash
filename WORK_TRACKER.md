@@ -111,7 +111,7 @@ Depends on Phase 3 (T06).
 | T36 | Draft PR badge — inline cyan DRAFT badge on PR list metadata line + detail pane indicator | T06, T07 | completed |
 | T37 | Fix CI:pend bug — treat NEUTRAL/SKIPPED as passing, CANCELLED/TIMED_OUT/etc. as failing | T06 | completed |
 | T38 | Green-highlight ready-to-merge PRs in "My PRs" using `mergeStateStatus` API field | T06, T07 | completed |
-| T74 | PR row layout restructure with fixed-width columns (two-line rows, right-aligned status icons, ellipsis truncation) | T06, T49, T50, T51 | not started |
+| T74 | PR row layout restructure with fixed-width columns (two-line rows, right-aligned status icons, ellipsis truncation) | T06, T49, T50, T51 | completed |
 | T75 | Nerd Font icon support (configurable `nerd_font` toggle for richer glyphs) | T74 | not started |
 
 ## Phase 11: Branch Detection
