@@ -25,6 +25,11 @@ _REVIEW_LABELS = {
     "pending": "[yellow]Rev:pend[/yellow]",
     "none": "[dim]Rev:--[/dim]",
 }
+_MERGE_STATE_BADGES: dict[str, str] = {
+    "DIRTY": " · [red]CONFLICT[/red]",
+    "BLOCKED": " · [yellow]BLOCKED[/yellow]",
+    "BEHIND": " · [yellow]BEHIND[/yellow]",
+}
 
 
 class PRSelected(Message):
@@ -84,9 +89,10 @@ class PRRow(ListItem):
         repo_prefix = f"[dim]{escape(self.pr.repo_slug)}[/dim]  " if self.pr.repo_slug else ""
         title_line = f"{repo_prefix}{escape(self.pr.title)}"
         draft_segment = " · [cyan]DRAFT[/cyan]" if self.pr.is_draft else ""
+        merge_badge = _MERGE_STATE_BADGES.get(self.pr.merge_state_status, "")
         size_segment = f" · [green]+{self.pr.additions}[/green][dim]/[/dim][red]-{self.pr.deletions}[/red]"
         comment_segment = f" · [dim]{self.pr.comment_count}💬[/dim]" if self.pr.comment_count else ""
-        meta_line = f"[dim]@{escape(self.pr.author)} · {self.pr.age_display}[/dim]{draft_segment} · {ci_label} · {review_label}{size_segment}{comment_segment}"
+        meta_line = f"[dim]@{escape(self.pr.author)} · {self.pr.age_display}[/dim]{draft_segment}{merge_badge} · {ci_label} · {review_label}{size_segment}{comment_segment}"
         classes = "pr-row-label pr-row-new" if self.is_new else "pr-row-label"
         if self.approved_by_me:
             classes += " pr-row-approved"

@@ -37,13 +37,22 @@ def _relative_time(dt: datetime) -> str:
     return f"{total_days // 7}w ago"
 
 
+_MERGE_STATE_DISPLAY: dict[str, str] = {
+    "DIRTY": " | Merge conflict",
+    "BLOCKED": " | Merge blocked",
+    "BEHIND": " | Behind base branch",
+    "CLEAN": " | Ready to merge",
+}
+
+
 def _format_metadata(pr: PullRequest) -> str:
     title_prefix = f"{pr.repo_slug} " if pr.repo_slug else ""
     draft_indicator = " [Draft]" if pr.is_draft else ""
     comments_info = f" | {pr.comment_count} comments" if pr.comment_count else ""
+    merge_info = _MERGE_STATE_DISPLAY.get(pr.merge_state_status, "")
     return (
         f"{title_prefix}{pr.title} (#{pr.number}){draft_indicator}\n"
-        f"by {pr.author} | opened {pr.age_display} ago{comments_info}\n"
+        f"by {pr.author} | opened {pr.age_display} ago{comments_info}{merge_info}\n"
         f"{pr.url}"
     )
 
