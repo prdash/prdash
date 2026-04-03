@@ -235,6 +235,42 @@ class TestTimeoutConfig:
         assert loaded.timeout == 15.0
 
 
+class TestNerdFontConfig:
+    def test_default_nerd_font(self) -> None:
+        config = AppConfig(repos=["org/repo"], username="user")
+        assert config.nerd_font is False
+
+    def test_nerd_font_enabled(self) -> None:
+        config = AppConfig(repos=["org/repo"], username="user", nerd_font=True)
+        assert config.nerd_font is True
+
+    def test_nerd_font_from_toml(self, tmp_path: Path) -> None:
+        path = _write_toml(
+            tmp_path,
+            """\
+            username = "user"
+            nerd_font = true
+            repos = ["org/repo"]
+            """,
+        )
+        config = load_config(path)
+        assert config.nerd_font is True
+
+    def test_nerd_font_round_trip(self, tmp_path: Path) -> None:
+        config = AppConfig(repos=["org/repo"], username="user", nerd_font=True)
+        path = tmp_path / "config.toml"
+        save_config(config, path)
+        loaded = load_config(path)
+        assert loaded.nerd_font is True
+
+    def test_nerd_font_false_not_serialized(self, tmp_path: Path) -> None:
+        config = AppConfig(repos=["org/repo"], username="user", nerd_font=False)
+        path = tmp_path / "config.toml"
+        save_config(config, path)
+        content = path.read_text()
+        assert "nerd_font" not in content
+
+
 class TestQueryGroupConfig:
     def test_labels_only_valid_for_label_type(self) -> None:
         with pytest.raises(ValueError, match="labels"):

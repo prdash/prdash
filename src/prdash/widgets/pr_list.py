@@ -21,7 +21,7 @@ _MERGE_STATE_BADGES: dict[str, str] = {
     "BEHIND": " [yellow]BEHIND[/yellow]",
 }
 
-ICONS: dict[str, str] = {
+UNICODE_ICONS: dict[str, str] = {
     "ci_passing": "[green]✓[/green]",
     "ci_failing": "[red]✗[/red]",
     "ci_pending": "[yellow]◍[/yellow]",
@@ -32,6 +32,27 @@ ICONS: dict[str, str] = {
     "review_none": "[dim]–[/dim]",
     "comment": "✉",
 }
+
+NERD_ICONS: dict[str, str] = {
+    "ci_passing": "[green][/green]",
+    "ci_failing": "[red]󰅙[/red]",
+    "ci_pending": "[yellow][/yellow]",
+    "ci_none": "[dim]–[/dim]",
+    "review_approved": "[green]󰄬[/green]",
+    "review_changes": "[red][/red]",
+    "review_pending": "[yellow]○[/yellow]",
+    "review_none": "[dim]–[/dim]",
+    "comment": "",
+}
+
+# Active icon set — switched at startup by set_nerd_font()
+ICONS: dict[str, str] = UNICODE_ICONS
+
+
+def set_nerd_font(enabled: bool) -> None:
+    """Switch the active icon set between Unicode and Nerd Font glyphs."""
+    global ICONS
+    ICONS = NERD_ICONS if enabled else UNICODE_ICONS
 
 
 def _fmt_size(n: int) -> str:

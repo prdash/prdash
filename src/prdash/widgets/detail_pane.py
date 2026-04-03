@@ -11,15 +11,38 @@ from textual.widgets import Markdown, Static
 
 from prdash.models import CandidateBranch, PullRequest, _format_age
 
-_CHECK_ICONS = {"SUCCESS": "*", "FAILURE": "!", None: "~"}
+_UNICODE_CHECK_ICONS: dict[str | None, str] = {"SUCCESS": "*", "FAILURE": "!", None: "~"}
+_NERD_CHECK_ICONS: dict[str | None, str] = {"SUCCESS": "", "FAILURE": "󰅙", None: ""}
 
-_REVIEWER_STATUS: dict[str, tuple[str, str]] = {
+_UNICODE_REVIEWER_STATUS: dict[str, tuple[str, str]] = {
     "APPROVED": ("✓", "approved"),
     "CHANGES_REQUESTED": ("✗", "changes requested"),
     "PENDING": ("○", "pending"),
     "COMMENTED": ("💬", "commented"),
     "DISMISSED": ("—", "dismissed"),
 }
+_NERD_REVIEWER_STATUS: dict[str, tuple[str, str]] = {
+    "APPROVED": ("󰄬", "approved"),
+    "CHANGES_REQUESTED": ("", "changes requested"),
+    "PENDING": ("○", "pending"),
+    "COMMENTED": ("", "commented"),
+    "DISMISSED": ("—", "dismissed"),
+}
+
+# Active icon sets — switched by set_detail_nerd_font()
+_CHECK_ICONS: dict[str | None, str] = _UNICODE_CHECK_ICONS
+_REVIEWER_STATUS: dict[str, tuple[str, str]] = _UNICODE_REVIEWER_STATUS
+
+
+def set_detail_nerd_font(enabled: bool) -> None:
+    """Switch the detail pane icon sets between Unicode and Nerd Font."""
+    global _CHECK_ICONS, _REVIEWER_STATUS
+    if enabled:
+        _CHECK_ICONS = _NERD_CHECK_ICONS
+        _REVIEWER_STATUS = _NERD_REVIEWER_STATUS
+    else:
+        _CHECK_ICONS = _UNICODE_CHECK_ICONS
+        _REVIEWER_STATUS = _UNICODE_REVIEWER_STATUS
 
 
 def _relative_time(dt: datetime) -> str:

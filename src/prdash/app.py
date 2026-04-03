@@ -173,6 +173,11 @@ class ReviewDashboardApp(App):
         self._refresh_timer: Timer | None = None
         if config and config.theme:
             self.theme = config.theme
+        if config:
+            from prdash.widgets.detail_pane import set_detail_nerd_font
+            from prdash.widgets.pr_list import set_nerd_font
+            set_nerd_font(config.nerd_font)
+            set_detail_nerd_font(config.nerd_font)
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -351,6 +356,10 @@ class ReviewDashboardApp(App):
         if new_config is None:
             return
         self.config = new_config
+        from prdash.widgets.detail_pane import set_detail_nerd_font
+        from prdash.widgets.pr_list import set_nerd_font
+        set_nerd_font(new_config.nerd_font)
+        set_detail_nerd_font(new_config.nerd_font)
         self._update_subtitle()
         if self._refresh_timer is not None:
             self._refresh_timer.stop()

@@ -75,6 +75,7 @@ class AppConfig(BaseModel):
     poll_interval: int = Field(default=300, ge=30)
     timeout: float = Field(default=30.0, ge=1.0)
     theme: str = "textual-dark"
+    nerd_font: bool = False
     query_groups: list[QueryGroupConfig] = Field(
         default_factory=lambda: list(DEFAULT_QUERY_GROUPS)
     )
@@ -155,6 +156,8 @@ def _serialize_config_toml(config: AppConfig) -> str:
     lines.append(f"timeout = {config.timeout}")
     if config.theme != "textual-dark":
         lines.append(f'theme = "{config.theme}"')
+    if config.nerd_font:
+        lines.append("nerd_font = true")
 
     if config.repos:
         repos = ", ".join(f'"{r}"' for r in config.repos)

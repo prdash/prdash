@@ -8,6 +8,8 @@ from prdash.app import ReviewDashboardApp
 from prdash.models import CandidateBranch, CheckRun, PullRequest, QueryGroupResult, Reviewer
 from prdash.widgets.pr_list import (
     ICONS,
+    NERD_ICONS,
+    UNICODE_ICONS,
     BranchRow,
     BranchSelected,
     EmptyGroupItem,
@@ -17,6 +19,7 @@ from prdash.widgets.pr_list import (
     PRRow,
     PRSelected,
     _fmt_size,
+    set_nerd_font,
 )
 
 
@@ -1332,6 +1335,22 @@ def test_icons_dict_has_expected_keys():
         "comment",
     }
     assert set(ICONS.keys()) == expected
+
+
+def test_unicode_and_nerd_icons_have_same_keys():
+    assert set(UNICODE_ICONS.keys()) == set(NERD_ICONS.keys())
+
+
+def test_set_nerd_font_switches_icons():
+    import prdash.widgets.pr_list as mod
+    original = mod.ICONS
+    try:
+        set_nerd_font(True)
+        assert mod.ICONS is NERD_ICONS
+        set_nerd_font(False)
+        assert mod.ICONS is UNICODE_ICONS
+    finally:
+        mod.ICONS = original
 
 
 # --- Status column integration tests (T74) ---
