@@ -125,6 +125,81 @@ class TestSettingsScreen:
                 assert new_config.poll_interval == 60
 
 
+    @pytest.mark.asyncio
+    async def test_nerd_font_switch_defaults_off(self) -> None:
+        config = _make_config()
+        app = ReviewDashboardApp(config=config)
+
+        async with app.run_test(size=(80, 24)) as pilot:
+            screen = SettingsScreen(config)
+            app.push_screen(screen)
+            await pilot.pause()
+
+            from textual.widgets import Switch
+
+            switch = screen.query_one("#nerd-font-switch", Switch)
+            assert switch.value is False
+
+    @pytest.mark.asyncio
+    async def test_nerd_font_switch_reflects_config(self) -> None:
+        config = _make_config(nerd_font=True)
+        app = ReviewDashboardApp(config=config)
+
+        async with app.run_test(size=(80, 24)) as pilot:
+            screen = SettingsScreen(config)
+            app.push_screen(screen)
+            await pilot.pause()
+
+            from textual.widgets import Switch
+
+            switch = screen.query_one("#nerd-font-switch", Switch)
+            assert switch.value is True
+
+    @pytest.mark.asyncio
+    async def test_save_includes_nerd_font(self) -> None:
+        config = _make_config()
+        result_holder: list = []
+        app = ReviewDashboardApp(config=config)
+
+        with patch("prdash.screens.settings.save_config"):
+            async with app.run_test(size=(80, 24)) as pilot:
+                app.push_screen(
+                    SettingsScreen(config), callback=result_holder.append
+                )
+                await pilot.pause()
+
+                from textual.widgets import Switch
+
+                app.screen.query_one("#nerd-font-switch", Switch).value = True
+
+                await pilot.click("#save-btn")
+                await pilot.pause()
+
+                assert len(result_holder) == 1
+                assert result_holder[0].nerd_font is True
+
+    @pytest.mark.asyncio
+    async def test_save_preserves_theme_and_timeout(self) -> None:
+        config = _make_config(theme="textual-light", timeout=15.0)
+        result_holder: list = []
+        app = ReviewDashboardApp(config=config)
+
+        with patch("prdash.screens.settings.save_config"):
+            async with app.run_test(size=(80, 24)) as pilot:
+                app.push_screen(
+                    SettingsScreen(config), callback=result_holder.append
+                )
+                await pilot.pause()
+
+                await pilot.click("#save-btn")
+                await pilot.pause()
+
+                assert len(result_holder) == 1
+                new_config = result_holder[0]
+                assert new_config.theme == "textual-light"
+                assert new_config.timeout == 15.0
+
+
 class TestSettingsIntegration:
     @pytest.mark.asyncio
     async def test_s_keybinding_opens_settings(self) -> None:

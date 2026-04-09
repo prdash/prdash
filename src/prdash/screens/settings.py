@@ -6,7 +6,7 @@ from textual.app import ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical
 from textual.screen import Screen
-from textual.widgets import Button, Footer, Header, Input, Label, Static
+from textual.widgets import Button, Footer, Header, Input, Label, Static, Switch
 
 from prdash.config import AppConfig, QueryGroupConfig, save_config
 from prdash.screens.query_groups import QueryGroupsScreen
@@ -27,6 +27,8 @@ class SettingsScreen(Screen[AppConfig | None]):
     .settings-field { margin-bottom: 1; }
     .settings-label { margin-bottom: 0; }
     .settings-buttons { margin-top: 1; dock: bottom; height: 3; }
+    .switch-row { height: 3; margin-bottom: 1; }
+    .switch-row Label { padding-top: 1; width: 1fr; }
     """
 
     def __init__(self, config: AppConfig, **kwargs: object) -> None:
@@ -67,6 +69,13 @@ class SettingsScreen(Screen[AppConfig | None]):
                 id="interval-input",
                 classes="settings-field",
             )
+
+            with Horizontal(classes="switch-row"):
+                yield Label("Nerd Font icons:")
+                yield Switch(
+                    value=self._config.nerd_font,
+                    id="nerd-font-switch",
+                )
 
             yield Button("Query Groups...", id="query-groups-btn")
 
@@ -126,12 +135,17 @@ class SettingsScreen(Screen[AppConfig | None]):
         repos = [s.strip() for s in repos_text.split(",") if s.strip()]
         team_slugs = [s.strip() for s in teams_text.split(",") if s.strip()]
 
+        nerd_font = self.query_one("#nerd-font-switch", Switch).value
+
         try:
             new_config = AppConfig(
                 repos=repos,
                 username=username,
                 team_slugs=team_slugs,
                 poll_interval=interval,
+                theme=self._config.theme,
+                timeout=self._config.timeout,
+                nerd_font=nerd_font,
                 query_groups=list(self._query_groups),
             )
         except Exception as e:
