@@ -12,7 +12,7 @@ from textual.widgets import Markdown, Static
 from prdash.models import CandidateBranch, PullRequest, _format_age
 
 _UNICODE_CHECK_ICONS: dict[str | None, str] = {"SUCCESS": "*", "FAILURE": "!", None: "~"}
-_NERD_CHECK_ICONS: dict[str | None, str] = {"SUCCESS": "", "FAILURE": "󰅙", None: ""}
+_NERD_CHECK_ICONS: dict[str | None, str] = {"SUCCESS": "\U0000f058", "FAILURE": "\U000f0159", None: "\U0000e641"}
 
 _UNICODE_REVIEWER_STATUS: dict[str, tuple[str, str]] = {
     "APPROVED": ("✓", "approved"),
@@ -22,10 +22,10 @@ _UNICODE_REVIEWER_STATUS: dict[str, tuple[str, str]] = {
     "DISMISSED": ("—", "dismissed"),
 }
 _NERD_REVIEWER_STATUS: dict[str, tuple[str, str]] = {
-    "APPROVED": ("󰄬", "approved"),
-    "CHANGES_REQUESTED": ("", "changes requested"),
+    "APPROVED": ("\U000f012c", "approved"),
+    "CHANGES_REQUESTED": ("\U0000eb43", "changes requested"),
     "PENDING": ("○", "pending"),
-    "COMMENTED": ("", "commented"),
+    "COMMENTED": ("\U0000f27b", "commented"),
     "DISMISSED": ("—", "dismissed"),
 }
 

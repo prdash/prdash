@@ -34,15 +34,15 @@ UNICODE_ICONS: dict[str, str] = {
 }
 
 NERD_ICONS: dict[str, str] = {
-    "ci_passing": "[green][/green]",
-    "ci_failing": "[red]󰅙[/red]",
-    "ci_pending": "[yellow][/yellow]",
+    "ci_passing": "[green]\U0000f058[/green]",
+    "ci_failing": "[red]\U000f0159[/red]",
+    "ci_pending": "[yellow]\U0000e641[/yellow]",
     "ci_none": "[dim]–[/dim]",
-    "review_approved": "[green]󰄬[/green]",
-    "review_changes": "[red][/red]",
+    "review_approved": "[green]\U000f012c[/green]",
+    "review_changes": "[red]\U0000eb43[/red]",
     "review_pending": "[yellow]○[/yellow]",
     "review_none": "[dim]–[/dim]",
-    "comment": "",
+    "comment": "\U0000f27b",
 }
 
 # Active icon set — switched at startup by set_nerd_font()
