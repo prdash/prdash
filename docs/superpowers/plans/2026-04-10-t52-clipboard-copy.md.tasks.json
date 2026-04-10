@@ -1,0 +1,11 @@
+{
+  "planPath": "docs/superpowers/plans/2026-04-10-t52-clipboard-copy.md",
+  "tasks": [
+    {"id": 1, "subject": "Task 1: Add ClipboardError exception", "status": "pending"},
+    {"id": 2, "subject": "Task 2: Implement copy_to_clipboard() with tests", "status": "pending", "blockedBy": [1]},
+    {"id": 3, "subject": "Task 3: Add y/Y keybindings and action methods", "status": "pending", "blockedBy": [2]},
+    {"id": 4, "subject": "Task 4: Update help screen and README", "status": "pending", "blockedBy": [3]},
+    {"id": 5, "subject": "Task 5: Final verification and WORK_TRACKER update", "status": "pending", "blockedBy": [4]}
+  ],
+  "lastUpdated": "2026-04-10T00:00:00Z"
+}
