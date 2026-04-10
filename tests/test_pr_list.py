@@ -1467,4 +1467,142 @@ async def test_pr_row_size_abbreviated_in_status():
         status = rows[0].query_one(".pr-row-status", Static)
         content = str(status.content)
         assert "1.2k" in content
-        assert "800" in content
+
+
+# --- Clipboard copy tests (T52) ---
+
+
+@pytest.mark.asyncio
+async def test_copy_url_copies_pr_url(sample_pr):
+    """y key copies the selected PR's full URL to clipboard."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Review Requested",
+                group_type="review_requested",
+                pull_requests=[sample_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        # Move down to the first PR row (index 0 is group header)
+        await pilot.press("j")
+        await pilot.pause()
+
+        with patch("prdash.widgets.pr_list.copy_to_clipboard", new_callable=AsyncMock) as mock_copy:
+            await pilot.press("y")
+            await pilot.pause()
+            mock_copy.assert_called_once_with(sample_pr.url)
+
+
+@pytest.mark.asyncio
+async def test_copy_ref_copies_pr_reference(sample_pr):
+    """Y key copies org/repo#number reference."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Review Requested",
+                group_type="review_requested",
+                pull_requests=[sample_pr],
+            ),
+        ])
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        await pilot.press("j")
+        await pilot.pause()
+
+        with patch("prdash.widgets.pr_list.copy_to_clipboard", new_callable=AsyncMock) as mock_copy:
+            await pilot.press("Y")
+            await pilot.pause()
+            expected = f"{sample_pr.repo_slug}#{sample_pr.number}"
+            mock_copy.assert_called_once_with(expected)
+
+
+@pytest.mark.asyncio
+async def test_copy_url_copies_branch_compare_url():
+    """y key on a BranchRow copies the compare URL."""
+    app = _make_app()
+    branch = _make_branch()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Ready to PR",
+                group_type="ready_to_pr",
+                branches=[branch],
+            ),
+        ])
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        await pilot.press("j")
+        await pilot.pause()
+
+        with patch("prdash.widgets.pr_list.copy_to_clipboard", new_callable=AsyncMock) as mock_copy:
+            await pilot.press("y")
+            await pilot.pause()
+            mock_copy.assert_called_once_with(branch.compare_url)
+
+
+@pytest.mark.asyncio
+async def test_copy_ref_copies_branch_name():
+    """Y key on a BranchRow copies the branch name."""
+    app = _make_app()
+    branch = _make_branch()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(
+                group_name="Ready to PR",
+                group_type="ready_to_pr",
+                branches=[branch],
+            ),
+        ])
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        await pilot.press("j")
+        await pilot.pause()
+
+        with patch("prdash.widgets.pr_list.copy_to_clipboard", new_callable=AsyncMock) as mock_copy:
+            await pilot.press("Y")
+            await pilot.pause()
+            mock_copy.assert_called_once_with(branch.name)
+
+
+@pytest.mark.asyncio
+async def test_copy_url_noop_on_group_header(sample_groups):
+    """y key on a group header does nothing."""
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data(sample_groups)
+        await pilot.pause()
+
+        list_view = widget.query_one(NavigableListView)
+        list_view.focus()
+        await pilot.pause()
+
+        # Don't press j — stay on the group header
+        with patch("prdash.widgets.pr_list.copy_to_clipboard", new_callable=AsyncMock) as mock_copy:
+            await pilot.press("y")
+            await pilot.pause()
+            mock_copy.assert_not_called()

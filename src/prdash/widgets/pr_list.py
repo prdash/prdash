@@ -12,6 +12,8 @@ from textual.widget import Widget
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Input, ListItem, ListView, Static
 
+from prdash.clipboard import copy_to_clipboard
+from prdash.exceptions import ClipboardError
 from prdash.models import CandidateBranch, PullRequest, QueryGroupResult
 from prdash.state import get_collapsed_groups, set_collapsed_groups
 
@@ -188,6 +190,8 @@ class NavigableListView(ListView):
         Binding("j", "cursor_down", "Down", show=False),
         Binding("k", "cursor_up", "Up", show=False),
         Binding("c", "checkout", "Checkout", show=False),
+        Binding("y", "copy_url", "Copy URL", show=False),
+        Binding("Y", "copy_ref", "Copy Ref", show=False),
     ]
 
     async def action_checkout(self) -> None:
@@ -228,6 +232,37 @@ class NavigableListView(ListView):
                     self.app.notify(f"Checkout failed: {err}", severity="error")
             except FileNotFoundError:
                 self.app.notify("git not found", severity="error")
+
+    async def action_copy_url(self) -> None:
+        """Copy the selected PR URL or branch compare URL to clipboard."""
+        item = self.highlighted_child
+        if isinstance(item, PRRow):
+            value = item.pr.url
+        elif isinstance(item, BranchRow):
+            value = item.branch.compare_url
+        else:
+            return
+        try:
+            await copy_to_clipboard(value)
+            self.app.notify(f"Copied: {value}", severity="information")
+        except ClipboardError as exc:
+            self.app.notify(str(exc), severity="error")
+
+    async def action_copy_ref(self) -> None:
+        """Copy PR reference (org/repo#123) or branch name to clipboard."""
+        item = self.highlighted_child
+        if isinstance(item, PRRow):
+            pr = item.pr
+            value = f"{pr.repo_slug}#{pr.number}"
+        elif isinstance(item, BranchRow):
+            value = item.branch.name
+        else:
+            return
+        try:
+            await copy_to_clipboard(value)
+            self.app.notify(f"Copied: {value}", severity="information")
+        except ClipboardError as exc:
+            self.app.notify(str(exc), severity="error")
 
 
 class PRListWidget(Widget):
