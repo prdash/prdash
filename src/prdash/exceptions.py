@@ -19,3 +19,7 @@ class GitHubAPIError(DashboardError):
 
 class NetworkError(DashboardError):
     """Network or timeout error communicating with GitHub."""
+
+
+class ClipboardError(DashboardError):
+    """Clipboard operation failed (pbcopy missing or failed)."""
