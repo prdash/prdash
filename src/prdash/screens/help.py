@@ -19,6 +19,8 @@ _KEYBINDINGS = [
     ("Actions", [
         ("r", "Refresh data"),
         ("c", "Checkout PR branch"),
+        ("y", "Copy PR URL"),
+        ("Y", "Copy PR reference"),
         ("/", "Search / filter PRs"),
         ("Ctrl+P", "Command palette"),
     ]),

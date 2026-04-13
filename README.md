@@ -168,6 +168,8 @@ The dashboard has a split-pane layout:
 | `Tab` | Switch focus between left and right panes |
 | `r` | Refresh PR data |
 | `c` | Checkout selected PR branch (via `gh pr checkout`) |
+| `y` | Copy selected PR URL to clipboard |
+| `Y` | Copy PR reference (`org/repo#123`) or branch name |
 | `/` | Search / filter PRs by title, author, repo, or number |
 | `Ctrl+P` | Open command palette |
 | `?` | Show keyboard shortcuts help |
