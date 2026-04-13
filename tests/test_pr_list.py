@@ -1467,6 +1467,7 @@ async def test_pr_row_size_abbreviated_in_status():
         status = rows[0].query_one(".pr-row-status", Static)
         content = str(status.content)
         assert "1.2k" in content
+        assert "800" in content
 
 
 # --- Clipboard copy tests (T52) ---
