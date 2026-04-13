@@ -168,7 +168,7 @@ Depends on Phase 2 (T04), Phase 3 (T06, T07), Phase 10 (T38).
 
 | ID | Task | Dependencies | Status |
 |---|---|---|---|
-| T52 | Copy PR URL/Number to Clipboard (`y`/`Y` keybindings) | T06 | not started |
+| T52 | Copy PR URL/Number to Clipboard (`y`/`Y` keybindings) | T06 | completed |
 | T53 | Quick Approve + Merge (approve and/or merge via gh CLI) | T06, T48 | not started |
 | T54 | Inline Diff Preview (show PR diff via gh pr diff + delta) | T06, T07 | not started |
 | T55 | Custom User-Defined Shell Actions (templated commands in config) | T06, T48 | not started |
