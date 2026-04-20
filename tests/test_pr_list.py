@@ -1470,6 +1470,29 @@ async def test_pr_row_size_abbreviated_in_status():
         assert "800" in content
 
 
+@pytest.mark.asyncio
+async def test_pr_row_title_with_brackets_renders_literally():
+    """Bracketed prefixes like '[PORIM-2709]' should not be swallowed as markup tags."""
+    from datetime import UTC, datetime, timedelta
+    pr = PullRequest(
+        id="PR_BR", number=99,
+        title="[PORIM-2709] Add segment-aware read path scaffolding",
+        author="alice", url="http://x/99",
+        created_at=datetime.now(UTC) - timedelta(hours=1),
+    )
+    app = _make_app()
+    async with app.run_test(size=(120, 40)) as pilot:
+        widget = pilot.app.query_one(PRListWidget)
+        widget.update_data([
+            QueryGroupResult(group_name="T", group_type="test", pull_requests=[pr]),
+        ])
+        await pilot.pause()
+        rows = list(widget.query(PRRow))
+        from textual.widgets import Static
+        title_static = rows[0].query_one(".pr-row-title", Static)
+        assert "[PORIM-2709]" in str(title_static.content)
+
+
 # --- Clipboard copy tests (T52) ---
 
 

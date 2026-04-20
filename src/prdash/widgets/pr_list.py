@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import webbrowser
 
-from rich.markup import escape
 from textual.binding import Binding
 from textual.message import Message
 from textual.widget import Widget
@@ -55,6 +54,17 @@ def set_nerd_font(enabled: bool) -> None:
     """Switch the active icon set between Unicode and Nerd Font glyphs."""
     global ICONS
     ICONS = NERD_ICONS if enabled else UNICODE_ICONS
+
+
+def _escape(text: str) -> str:
+    """Escape Textual markup in user-provided text.
+
+    Rich's ``markup.escape`` only escapes tags that start with lowercase
+    letters, but Textual's parser treats uppercase tags like ``[PORIM-2709]``
+    as style tags, stripping the brackets and content. Backslash-escaping
+    every ``[`` avoids that.
+    """
+    return text.replace("[", r"\[")
 
 
 def _fmt_size(n: int) -> str:
@@ -121,12 +131,12 @@ class PRRow(ListItem):
         marker_text = "[bold]●[/bold]" if self.is_new else " "
 
         # Left content: metadata (line 1) + title (line 2)
-        repo_prefix = f"{escape(self.pr.repo_slug)} " if self.pr.repo_slug else ""
-        meta_markup = f"[dim]{repo_prefix}#{self.pr.number} by @{escape(self.pr.author)}[/dim]"
+        repo_prefix = f"{_escape(self.pr.repo_slug)} " if self.pr.repo_slug else ""
+        meta_markup = f"[dim]{repo_prefix}#{self.pr.number} by @{_escape(self.pr.author)}[/dim]"
 
         draft_badge = " [cyan]DRAFT[/cyan]" if self.pr.is_draft else ""
         merge_badge = _MERGE_STATE_BADGES.get(self.pr.merge_state_status, "")
-        title_markup = f"[bold]{escape(self.pr.title)}[/bold]{draft_badge}{merge_badge}"
+        title_markup = f"[bold]{_escape(self.pr.title)}[/bold]{draft_badge}{merge_badge}"
 
         # Right content: age + status icons
         age = f"[dim]{self.pr.age_display}[/dim]"
@@ -170,9 +180,9 @@ class BranchRow(ListItem):
         super().__init__(**kwargs)
 
     def compose(self):
-        repo_prefix = f"{escape(self.branch.repo_slug)} " if self.branch.repo_slug else ""
+        repo_prefix = f"{_escape(self.branch.repo_slug)} " if self.branch.repo_slug else ""
         meta_markup = f"[dim]{repo_prefix}[/dim]"
-        title_markup = f"[bold]{escape(self.branch.name)}[/bold] · [cyan]ready to PR[/cyan]"
+        title_markup = f"[bold]{_escape(self.branch.name)}[/bold] · [cyan]ready to PR[/cyan]"
 
         age = f"[dim]{self.branch.age_display}[/dim]"
         with Vertical(classes="pr-row-container"):
